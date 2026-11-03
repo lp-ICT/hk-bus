@@ -3,19 +3,20 @@ import { arrivalLabel, nearbyArrivals, nearestRoutes, sortNearby, type Favourite
 
 type Result = NearbyArrival & { updated: number };
 const rowKey = (row: NearbyArrival) => `${row.route.company}-${row.route.route}-${row.route.bound}`;
-export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect }: { stops: (Stop & { meters: number })[]; routes: Route[]; loadingRoutes: boolean; onSelect: (value: Favourite) => void }) {
+export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect, onRefresh, locating, startupDeadline }: { onRefresh: () => Promise<void>; locating: boolean; startupDeadline: number; stops: (Stop & { meters: number })[]; routes: Route[]; loadingRoutes: boolean; onSelect: (value: Favourite) => void }) {
   const [rows, setRows] = useState<Result[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [now, setNow] = useState(Date.now());
   const [next, setNext] = useState(0);
-  const refreshRef = useRef<() => void>(() => {});
+  const savedRef = useRef<Result[]>([]);
   useEffect(() => {
     let cancelled = false;
     let running = false;
     let due = 0;
-    let saved: Result[] = [];
-    setRows([]); setBusy(true); setError(''); setNext(0);
+    let saved: Result[] = savedRef.current;
+    let incomplete = false;
+    setRows(saved); setBusy(true); setError(''); setNext(0);
     async function refresh() {
       if (loadingRoutes || running || cancelled) return;
       running = true; setBusy(true);
@@ -39,19 +40,19 @@ export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect }:
           previous.delete(rowKey(row));
           return row.error && old ? { ...old, error: true } : { ...row, updated: row.error ? 0 : at };
         });
-        const incomplete = failures > 0 || results.some(row => row.error);
+        incomplete = failures > 0 || results.some(row => row.error);
         if (incomplete) merged.push(...[...previous.values()].map(row => ({ ...row, error: true })));
-        saved = merged;
+        saved = merged; savedRef.current = saved;
         setRows(saved); setNow(at);
         setError(incomplete ? (saved.some(row => row.updated) ? '部分資料更新失敗，保留上次成功結果；請留意各路線資料時間。' : '未能取得完整到站資料，請按「立即更新」重試。') : '');
       } catch {
-        if (!cancelled) { saved = saved.map(row => ({ ...row, error: true })); setRows(saved); setError(saved.length ? '更新失敗，保留上次成功結果，請留意資料時間。' : '首次載入失敗，請檢查網絡並按「立即更新」重試。'); }
+        incomplete = true;
+        if (!cancelled) { saved = saved.map(row => ({ ...row, error: true })); savedRef.current = saved; setRows(saved); setError(saved.length ? '更新失敗，保留上次成功結果，請留意資料時間。' : '首次載入失敗，請檢查網絡並按「立即更新」重試。'); }
       } finally {
         running = false;
-        if (!cancelled) { due = Date.now() + 30000; setNext(due); setBusy(false); }
+        if (!cancelled) { due = Date.now() + (incomplete && Date.now() + 5000 <= startupDeadline ? 5000 : 30000); setNext(due); setBusy(false); }
       }
     }
-    refreshRef.current = () => { void refresh(); };
     void refresh();
     const timer = setInterval(() => {
       setNow(Date.now());
@@ -61,11 +62,11 @@ export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect }:
     window.addEventListener('online', resume);
     document.addEventListener('visibilitychange', resume);
     return () => { cancelled = true; clearInterval(timer); window.removeEventListener('online', resume); document.removeEventListener('visibilitychange', resume); };
-  }, [stops, routes, loadingRoutes]);
+  }, [stops, routes, loadingRoutes, startupDeadline]);
   const display = sortNearby(rows.map(row => ({ ...row, arrivals: row.arrivals.filter(a => a.eta && Date.parse(a.eta) > now - 60000) })), now) as Result[];
   return <div className="near-routes">
     <div className="section-label"><span>附近路線 · 最快到站優先</span><span>{busy ? '更新中…' : error && !rows.length ? '資料暫未能取得' : `${rows.length} 條路線及方向`}</span></div>
-    <div className="nearby-refresh"><span role="timer">{busy ? '正在更新資料…' : `下次更新：${Math.max(0, Math.ceil((next - now) / 1000))} 秒`}</span><button className="primary-button" disabled={busy || loadingRoutes} onClick={() => refreshRef.current()}>立即更新</button></div>
+    <div className="nearby-refresh"><span role="timer">{busy || locating ? '正在更新資料…' : `下次更新：${Math.max(0, Math.ceil((next - now) / 1000))} 秒`}</span><button className="primary-button" disabled={busy || loadingRoutes || locating} onClick={() => void onRefresh()}>立即更新</button></div>
     {error && <p className="error-text" role="alert">{error}</p>}
     {!rows.length && busy && <p className="loading-message">正在查詢附近路線及即時到站時間…</p>}
     {display.map(row => <button className="route-card" key={rowKey(row)} onClick={() => onSelect(row)}>

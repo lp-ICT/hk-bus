@@ -65,15 +65,23 @@ export default function BusApp() {
   const [showInstall, setShowInstall] = useState(false);
   const stopRequest = useRef(0);
   const located = useRef(false);
+  const startupDeadline = useRef(Date.now() + 30000);
+  const locationReady = useRef(false);
+  const routeReady = useRef(false);
+  const locationActive = useRef(false);
+  const routeActive = useRef(false);
   useEffect(() => { if (!located.current) { located.current = true; void locate(); } }, []);
 
   async function loadRoutes() {
+    if (routeActive.current) return;
+    routeActive.current = true;
     setLoading(true); setRouteError('');
     const results = await Promise.allSettled([routesFor('KMB'), routesFor('CTB')]);
     const loaded = results.flatMap(result => result.status === 'fulfilled' ? result.value : []);
-    setRoutes(loaded.sort((a, b) => a.route.localeCompare(b.route, 'en', { numeric: true }) || a.service.localeCompare(b.service)));
+    routeReady.current = results.every(result => result.status === 'fulfilled');
+    if (loaded.length) setRoutes(loaded.sort((a, b) => a.route.localeCompare(b.route, 'en', { numeric: true }) || a.service.localeCompare(b.service)));
     if (results.some(result => result.status === 'rejected')) setRouteError(loaded.length ? '部分巴士公司資料未能載入，可以重試。' : '未能載入路線，請檢查網絡後重試。');
-    setLoading(false);
+    setLoading(false); routeActive.current = false;
   }
   useEffect(() => {
     void loadRoutes();
@@ -84,6 +92,17 @@ export default function BusApp() {
     if (import.meta.env.PROD && 'serviceWorker' in navigator) navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {});
     return () => { window.removeEventListener('online', status); window.removeEventListener('offline', status); window.removeEventListener('beforeinstallprompt', prompt); };
   }, []);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (Date.now() > startupDeadline.current) { clearInterval(timer); return; }
+      if (!locationReady.current) void locate();
+      if (!routeReady.current) void loadRoutes();
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+  async function refreshNearby() {
+    await Promise.all([locate(), loadRoutes()]);
+  }
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 4000); return () => clearTimeout(timer); }, [notice]);
   useEffect(() => {
     const id = ++stopRequest.current;
@@ -103,18 +122,21 @@ export default function BusApp() {
   }
   function changeTab(value: typeof tab) { setTab(value); setRoute(null); setSelected(null); }
   async function locate() {
-    setNearBusy(true); setNearError(''); setNearby([]);
+    if (locationActive.current) return;
+    locationActive.current = true;
+    setNearBusy(true); setNearError('');
     try {
       if (!navigator.geolocation) throw new Error('這個瀏覽器不支援定位。');
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }));
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 4500, maximumAge: 0 }));
       const { latitude, longitude } = position.coords;
       const stops = await allKmbStops();
       const closest = stops.map(stop => ({ ...stop, meters: distance(latitude, longitude, stop) })).filter(stop => stop.meters <= 1000).sort((a, b) => a.meters - b.meters).slice(0, 20);
+      locationReady.current = true;
       setNearby(closest);
       if (!closest.length) setNearError('你附近 1 公里內沒有九巴／龍運車站。可改用路線搜尋。');
     } catch (error) {
-      setNearError(typeof error === 'object' && error && 'code' in error && error.code === 1 ? '定位權限未開啟。請在瀏覽器設定允許位置存取，或改用路線搜尋。' : '暫時未能取得位置或車站資料，請重新載入網頁，或改用路線搜尋。');
-    } finally { setNearBusy(false); }
+      setNearError(typeof error === 'object' && error && 'code' in error && error.code === 1 ? '定位權限未開啟。請在瀏覽器設定允許位置存取，或改用路線搜尋。' : '暫時未能取得位置或車站資料，請按「立即更新」重試，或改用路線搜尋。');
+    } finally { locationActive.current = false; setNearBusy(false); }
   }
   const cleanQuery = query.trim().toUpperCase();
   const filtered = routes.filter(r => (company === 'all' || r.company === company) && (!cleanQuery || r.route.includes(cleanQuery) || r.from.includes(query.trim()) || r.to.includes(query.trim())));
@@ -144,7 +166,7 @@ export default function BusApp() {
       })}</div></section> : <>
         {tab === 'search' && <section className="search-section"><label className="search-box"><Search size={22} /><input aria-label="搜尋巴士路線、車站或地點" placeholder="輸入路線、車站或地點，例如 1A、田寮新村" value={query} onChange={e => setQuery(e.target.value)} autoComplete="off" />{query && <button aria-label="清除搜尋" className="icon-button" onClick={() => setQuery('')}><X size={18} /></button>}</label><div className="filter-row">{([{ id: 'all', name: '全部巴士' }, { id: 'KMB', name: '九巴 / 龍運' }, { id: 'CTB', name: '城巴' }] as const).map(c => <button aria-pressed={company === c.id} className={company === c.id ? 'chosen' : ''} key={c.id} onClick={() => setCompany(c.id)}>{c.name}</button>)}</div>{routeError && <div className="inline-error" role="alert">{routeError}<button onClick={() => void loadRoutes()}>重試</button></div>}{query.trim() && company !== 'CTB' && <StopSearch query={query} routes={routes} loadingRoutes={loading} onSelect={value => { setRoute(value.route); setSelected(value); }} />}<div className="section-label"><span>{query ? '路線／起點／目的地搜尋結果' : '路線一覽'}</span><span>{loading ? '載入中' : `${filtered.length} 個方向及班次`}</span></div>{loading ? <p className="loading-message"><RefreshCw size={17} className="spin" />正在載入巴士路線…</p> : displayed.length ? <div className="route-grid">{displayed.map(r => routeButton(r, () => { setRoute(r); setSelected(null); }))}</div> : <div className="empty-state"><Search size={32} /><h2>找不到這條路線</h2><p>試試其他路線號碼、起點或目的地；車站搜尋結果會顯示在上方。</p></div>}{filtered.length > 80 && <p className="list-note">顯示首 80 個結果，輸入路線或目的地可縮小範圍。</p>}</section>}
         {tab === 'favourites' && <section><div className="section-label"><span>常用路線，隨手就睇</span><span>{favourites.length} 個收藏</span></div>{favourites.length ? <div className="favourite-list">{favourites.map(f => arrivalRow(f))}</div> : <div className="empty-state"><Star size={36} /><h2>把常搭的巴士，放在這裡。</h2><p>搜尋路線，按車站旁的星星加入收藏。<br />收藏只保存在目前的裝置。</p><button className="primary-button" onClick={() => changeTab('search')}>搜尋路線 <ArrowRight size={17} /></button></div>}</section>}
-        {tab === 'nearby' && <section>{nearError && <p role="alert" className="error-text">{nearError}</p>}{nearBusy && <p className="loading-message"><RefreshCw size={17} className="spin" />正在查詢位置及車站資料…</p>}{nearby.length > 0 && <NearbyRoutes stops={nearby} routes={routes} loadingRoutes={loading} onSelect={value => { setRoute(value.route); setSelected(value); }} />}<p className="list-note">城巴請使用「搜尋路線」查詢車站及到站時間。</p></section>}
+        {tab === 'nearby' && <section>{nearError && <p role="alert" className="error-text">{nearError}</p>}{nearBusy && <p className="loading-message"><RefreshCw size={17} className="spin" />正在查詢位置及車站資料…</p>}{nearby.length === 0 && <button className="primary-button" disabled={nearBusy || loading} onClick={() => void refreshNearby()}>立即更新</button>}{nearby.length > 0 && <NearbyRoutes onRefresh={refreshNearby} locating={nearBusy} startupDeadline={startupDeadline.current} stops={nearby} routes={routes} loadingRoutes={loading} onSelect={value => { setRoute(value.route); setSelected(value); }} />}<p className="list-note">城巴請使用「搜尋路線」查詢車站及到站時間。</p></section>}
       </>}
       <footer><span className="footer-brand"><BusFront size={17} /> 就到站</span><p>資料來自 <a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_21-etakmb" target="_blank" rel="noreferrer">九巴／龍運</a> 及 <a href="https://data.gov.hk/tc-data/dataset/ctb-eta-transport-realtime-eta" target="_blank" rel="noreferrer">城巴</a> 開放數據。<br />非官方應用程式 · 到站時間以巴士公司資料為準</p><span className="footer-note"><Clock3 size={13} /> 香港時間 UTC+8</span></footer>
     </main>
