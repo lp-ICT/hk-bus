@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownUp, ArrowLeft, ArrowRight, BusFront, ChevronRight, Clock3, Download, LocateFixed, MapPin, RefreshCw, Search, Star, WifiOff, X } from 'lucide-react';
-import { allKmbStops, arrivalLabel, arrivalsFor, companyName, distance, favouriteKey, routeKey, routesAtStop, routesFor, stopsFor, type Arrival, type Company, type Favourite, type Route, type Stop } from '../lib/bus';
+import { allKmbStops, arrivalLabel, arrivalsFor, companyName, distance, favouriteKey, routeKey, routesFor, stopsFor, type Arrival, type Company, type Favourite, type Route, type Stop } from '../lib/bus';
 
 import StopSearch from './stop-search';
 import NearbyRoutes from './nearby-routes';
@@ -60,13 +60,10 @@ export default function BusApp() {
   const [nearby, setNearby] = useState<(Stop & { meters: number })[]>([]);
   const [nearBusy, setNearBusy] = useState(false);
   const [nearError, setNearError] = useState('');
-  const [nearRoutes, setNearRoutes] = useState<Favourite[] | null>(null);
-  const [nearName, setNearName] = useState('');
   const [online, setOnline] = useState(navigator.onLine);
   const [install, setInstall] = useState<InstallEvent | null>(null);
   const [showInstall, setShowInstall] = useState(false);
   const stopRequest = useRef(0);
-  const nearRequest = useRef(0);
   const located = useRef(false);
   useEffect(() => { if (!located.current) { located.current = true; void locate(); } }, []);
 
@@ -106,7 +103,7 @@ export default function BusApp() {
   }
   function changeTab(value: typeof tab) { setTab(value); setRoute(null); setSelected(null); }
   async function locate() {
-    setNearBusy(true); setNearError(''); setNearby([]); setNearRoutes(null); nearRequest.current++;
+    setNearBusy(true); setNearError(''); setNearby([]);
     try {
       if (!navigator.geolocation) throw new Error('這個瀏覽器不支援定位。');
       const position = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }));
@@ -116,15 +113,8 @@ export default function BusApp() {
       setNearby(closest);
       if (!closest.length) setNearError('你附近 1 公里內沒有九巴／龍運車站。可改用路線搜尋。');
     } catch (error) {
-      setNearError(typeof error === 'object' && error && 'code' in error && error.code === 1 ? '定位權限未開啟。請在瀏覽器設定允許位置存取，或改用路線搜尋。' : '暫時未能取得位置或車站資料，請重試。');
+      setNearError(typeof error === 'object' && error && 'code' in error && error.code === 1 ? '定位權限未開啟。請在瀏覽器設定允許位置存取，或改用路線搜尋。' : '暫時未能取得位置或車站資料，請重新載入網頁，或改用路線搜尋。');
     } finally { setNearBusy(false); }
-  }
-  async function openNearby(stop: Stop) {
-    const id = ++nearRequest.current;
-    setNearName(stop.name); setNearBusy(true); setNearError(''); setNearRoutes(null);
-    try { const result = await routesAtStop(stop.id, routes); if (id === nearRequest.current) setNearRoutes(result); }
-    catch { if (id === nearRequest.current) setNearError('未能載入途經路線，請重試。'); }
-    finally { if (id === nearRequest.current) setNearBusy(false); }
   }
   const cleanQuery = query.trim().toUpperCase();
   const filtered = routes.filter(r => (company === 'all' || r.company === company) && (!cleanQuery || r.route.includes(cleanQuery) || r.from.includes(query.trim()) || r.to.includes(query.trim())));
@@ -155,7 +145,7 @@ export default function BusApp() {
       })}</div></section> : <>
         {tab === 'search' && <section className="search-section"><label className="search-box"><Search size={22} /><input aria-label="搜尋巴士路線、車站或地點" placeholder="輸入路線、車站或地點，例如 1A、田寮新村" value={query} onChange={e => setQuery(e.target.value)} autoComplete="off" />{query && <button aria-label="清除搜尋" className="icon-button" onClick={() => setQuery('')}><X size={18} /></button>}</label><div className="filter-row">{([{ id: 'all', name: '全部巴士' }, { id: 'KMB', name: '九巴 / 龍運' }, { id: 'CTB', name: '城巴' }] as const).map(c => <button aria-pressed={company === c.id} className={company === c.id ? 'chosen' : ''} key={c.id} onClick={() => setCompany(c.id)}>{c.name}</button>)}</div>{routeError && <div className="inline-error" role="alert">{routeError}<button onClick={() => void loadRoutes()}>重試</button></div>}{query.trim() && company !== 'CTB' && <StopSearch query={query} routes={routes} loadingRoutes={loading} onSelect={value => { setRoute(value.route); setSelected(value); }} />}<div className="section-label"><span>{query ? '路線／起點／目的地搜尋結果' : '路線一覽'}</span><span>{loading ? '載入中' : `${filtered.length} 個方向及班次`}</span></div>{loading ? <p className="loading-message"><RefreshCw size={17} className="spin" />正在載入巴士路線…</p> : displayed.length ? <div className="route-grid">{displayed.map(r => routeButton(r, () => { setRoute(r); setSelected(null); }))}</div> : <div className="empty-state"><Search size={32} /><h2>找不到這條路線</h2><p>試試其他路線號碼、起點或目的地；車站搜尋結果會顯示在上方。</p></div>}{filtered.length > 80 && <p className="list-note">顯示首 80 個結果，輸入路線或目的地可縮小範圍。</p>}</section>}
         {tab === 'favourites' && <section><div className="section-label"><span>常用路線，隨手就睇</span><span>{favourites.length} 個收藏</span></div>{favourites.length ? <div className="favourite-list">{favourites.map(f => arrivalRow(f))}</div> : <div className="empty-state"><Star size={36} /><h2>把常搭的巴士，放在這裡。</h2><p>搜尋路線，按車站旁的星星加入收藏。<br />收藏只保存在目前的裝置。</p><button className="primary-button" onClick={() => changeTab('search')}>搜尋路線 <ArrowRight size={17} /></button></div>}</section>}
-        {tab === 'nearby' && <section><div className="nearby-intro"><span className="location-icon"><LocateFixed size={26} /></span><div><h2>附近有咩車搭？</h2><p>自動顯示 1 公里內九巴／龍運路線，最快到站排最頂。<br />開啟時請求定位，只讀取一次，不會儲存。</p></div><button className="primary-button" disabled={nearBusy} onClick={() => void locate()}><LocateFixed size={17} />{nearBusy ? '查詢中…' : '重新定位'}</button></div>{nearError && <p role="alert" className="error-text">{nearError}</p>}{nearBusy && <p className="loading-message"><RefreshCw size={17} className="spin" />正在查詢位置及車站資料…</p>}{nearby.length > 0 && <NearbyRoutes stops={nearby} routes={routes} loadingRoutes={loading} onSelect={value => { setRoute(value.route); setSelected(value); }} />}{nearRoutes !== null && <div className="near-routes"><div className="section-label"><span>{nearName} · 途經路線</span><button onClick={() => setNearRoutes(null)} className="text-button">收起</button></div>{nearRoutes.length ? nearRoutes.map(f => arrivalRow(f)) : <p className="empty-message">暫時沒有途經路線資料。</p>}</div>}<div className="nearby-list">{nearby.map(stop => <button className="nearby-stop" key={stop.id} disabled={nearBusy || loading} onClick={() => void openNearby(stop)}><MapPin size={20} /><span><strong>{stop.name}</strong><small>九巴 / 龍運 · {stop.id}</small></span><b>{Math.round(stop.meters)} 米</b><ChevronRight size={17} /></button>)}</div><p className="list-note">城巴請使用「搜尋路線」查詢車站及到站時間。</p></section>}
+        {tab === 'nearby' && <section><div className="nearby-intro"><span className="location-icon"><LocateFixed size={26} /></span><div><h2>附近有咩車搭？</h2><p>自動顯示 1 公里內九巴／龍運路線，最快到站排最頂。<br />開啟時請求定位，只讀取一次，不會儲存。</p></div></div>{nearError && <p role="alert" className="error-text">{nearError}</p>}{nearBusy && <p className="loading-message"><RefreshCw size={17} className="spin" />正在查詢位置及車站資料…</p>}{nearby.length > 0 && <NearbyRoutes stops={nearby} routes={routes} loadingRoutes={loading} onSelect={value => { setRoute(value.route); setSelected(value); }} />}<p className="list-note">城巴請使用「搜尋路線」查詢車站及到站時間。</p></section>}
       </>}
       <footer><span className="footer-brand"><BusFront size={17} /> 就到站</span><p>資料來自 <a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_21-etakmb" target="_blank" rel="noreferrer">九巴／龍運</a> 及 <a href="https://data.gov.hk/tc-data/dataset/ctb-eta-transport-realtime-eta" target="_blank" rel="noreferrer">城巴</a> 開放數據。<br />非官方應用程式 · 到站時間以巴士公司資料為準</p><span className="footer-note"><Clock3 size={13} /> 香港時間 UTC+8</span></footer>
     </main>
