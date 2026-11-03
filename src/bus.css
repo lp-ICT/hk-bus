@@ -12,3 +12,5 @@
 .nearby-times small { font-size: 11px; color: #817b79; font-weight: 400; }
 .nearby-times strong { font-size: 16px; white-space: nowrap; }
 @media (max-width: 420px) { .nearby-times > span { gap: 4px; } .nearby-times strong { font-size: 14px; } }
+
+.pull-refresh-indicator { position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; z-index: 100; display: flex; align-items: center; gap: 8px; width: max-content; max-width: 90vw; padding: 12px 18px; border: 1px solid #eadcdd; border-radius: 24px; background: #fff; color: #b71926; box-shadow: 0 4px 18px #0002; font-size: 14px; pointer-events: none; }

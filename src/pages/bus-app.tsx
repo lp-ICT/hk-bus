@@ -4,6 +4,7 @@ import { allKmbStops, arrivalLabel, arrivalsFor, companyName, distance, favourit
 
 import StopSearch from './stop-search';
 import NearbyRoutes from './nearby-routes';
+import PullRefresh from './pull-refresh';
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 function readFavourites(): Favourite[] {
@@ -156,6 +157,7 @@ export default function BusApp() {
     </article>;
   }
   return <div className="bus-app">
+    <PullRefresh enabled={tab === 'nearby' && !route && !showInstall} busy={nearBusy || loading} onRefresh={refreshNearby} />
     <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><span className="brand-icon"><BusFront size={25} strokeWidth={2.2} /></span><span>就到站<span className="brand-en">HK BUS</span></span></a><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button></header>
     {!online && <div className="offline-banner" role="status"><WifiOff size={16} />目前離線 · 到站預報需要網絡連線</div>}
     <main>
