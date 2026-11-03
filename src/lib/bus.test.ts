@@ -32,12 +32,12 @@ test('nearby distances use metres', () => {
   expect(distance(stop.lat + 0.01, stop.lng, stop)).toBeLessThan(1120);
 });
 
-test('ETA shows only the first two predictions in sequence for both companies', async () => {
+test('ETA shows only the first three predictions in sequence for both companies', async () => {
   const eta = new Date(Date.now() + 600000).toISOString();
-  globalThis.fetch = (async () => new Response(JSON.stringify({ data: [3, 1, 2].map(eta_seq => ({ dir: 'O', seq: 3, service_type: 1, eta, eta_seq })) }))) as unknown as typeof fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ data: [4, 3, 1, 2].map(eta_seq => ({ dir: 'O', seq: 3, service_type: 1, eta, eta_seq })) }))) as unknown as typeof fetch;
   for (const company of ['KMB', 'CTB'] as const) {
     const arrivals = await arrivalsFor({ ...route, company }, stop);
-    expect(arrivals.map(arrival => arrival.seq)).toEqual([1, 2]);
+    expect(arrivals.map(arrival => arrival.seq)).toEqual([1, 2, 3]);
   }
 });
 

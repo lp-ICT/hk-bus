@@ -83,7 +83,7 @@ export async function arrivalsFor(route: Route, stop: Stop): Promise<Arrival[]> 
   return rows.filter(row => String(row.dir) === route.bound && Number(row.seq) === stop.seq && (route.company !== 'KMB' || String(row.service_type) === route.service))
     .map(row => ({ eta: row.eta ? String(row.eta) : null, remark: String(row.rmk_tc || ''), seq: Number(row.eta_seq) }))
     .filter(row => !row.eta || Date.parse(row.eta) > Date.now() - 60000)
-    .sort((a, b) => a.seq - b.seq).slice(0, 2);
+    .sort((a, b) => a.seq - b.seq).slice(0, 3);
 }
 
 export async function routesAtStop(id: string, routes: Route[]): Promise<Favourite[]> {
