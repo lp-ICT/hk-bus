@@ -1,10 +1,10 @@
 {
-  "name": "zo-site",
+  "name": "hk-bus",
   "type": "module",
   "scripts": {
     "clear-cache": "rm -rf node_modules/.vite",
     "dev": "bun run clear-cache && NODE_ENV=development bun run --hot server.ts",
-    "build": "bun run clear-cache && vite build",
+    "build": "vite build && bun scripts/build-sw.ts",
     "prod": "bun run build && NODE_ENV=production bun run server.ts",
     "preview": "bun run vite preview"
   },
