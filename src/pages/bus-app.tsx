@@ -7,7 +7,7 @@ function readFavourites(): Favourite[] {
   try { const value = JSON.parse(localStorage.getItem('bus-favourites-v1') || '[]'); return Array.isArray(value) ? value.filter(f => f?.route?.route && f?.stop?.id) : []; } catch { return []; }
 }
 
-function EtaPanel({ selected }: { selected: Favourite }) {
+function EtaPanel({ selected, compact = false }: { selected: Favourite; compact?: boolean }) {
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(0);
@@ -20,7 +20,7 @@ function EtaPanel({ selected }: { selected: Favourite }) {
     try {
       if (!navigator.onLine) throw new Error('目前離線，連線後才能更新到站時間。');
       const result = await arrivalsFor(selected.route, selected.stop);
-      setArrivals(result); setUpdated(Date.now()); setError('');
+      setArrivals(result); setNow(Date.now()); setUpdated(Date.now()); setError('');
     } catch { setArrivals([]); setError('未能取得即時到站資料，請檢查網絡後重試。'); }
     finally { active.current = false; setBusy(false); }
   }
@@ -33,15 +33,15 @@ function EtaPanel({ selected }: { selected: Favourite }) {
     return () => { clearInterval(timer); window.removeEventListener('online', online); window.removeEventListener('offline', offline); };
   }, []);
   const stale = now - updated > 90000;
-  return <div className="eta-panel" aria-live="polite">
+  return <div className={compact ? 'eta-panel compact-eta' : 'eta-panel'} aria-live="polite">
     <div className="section-label"><span><span className="live-dot" /> 即時到站預報</span><button className="icon-button" aria-label="更新到站時間" disabled={busy} onClick={() => void refresh()}><RefreshCw size={17} className={busy ? 'spin' : ''} /></button></div>
-    {error ? <p role="alert" className="error-text">{error}</p> : busy && !updated ? <p className="muted">正在向巴士公司查詢…</p> : stale ? <p className="error-text">資料已過時，請更新。</p> : arrivals.length ? <div className="eta-times">{arrivals.map((a, i) => <div key={i} className={i === 0 ? 'first-eta' : ''}><span className="eta-caption">{i === 0 ? '下一班' : `第 ${i + 1} 班`}</span><strong>{arrivalLabel(a.eta, now)}</strong>{a.eta && <time>{new Date(a.eta).toLocaleTimeString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour: '2-digit', minute: '2-digit', hour12: false })}</time>}{a.remark && <small>{a.remark}</small>}</div>)}</div> : <p className="muted">暫時沒有到站預報，可能尚未開出或已結束服務。</p>}
+    {error ? <p role="alert" className="error-text">{error}</p> : busy && !updated ? <p className="muted">正在向巴士公司查詢…</p> : stale ? <p className="error-text">資料已過時，請更新。</p> : arrivals.length ? <div className="eta-times">{Array.from({ length: 2 }, (_, i) => arrivals[i] || { eta: null, remark: '', seq: i + 1 }).map((a, i) => <div key={i} className={i === 0 ? 'first-eta' : ''}><span className="eta-caption">{i === 0 ? '下一班' : `第 ${i + 1} 班`}</span><strong>{arrivalLabel(a.eta, now)}</strong>{a.eta && <time>{new Date(a.eta).toLocaleTimeString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour: '2-digit', minute: '2-digit', hour12: false })}</time>}{a.remark && <small>{a.remark}</small>}</div>)}</div> : <p className="muted">暫時沒有到站預報，可能尚未開出或已結束服務。</p>}
     <p className="eta-note">{updated ? `更新於 ${new Date(updated).toLocaleTimeString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour12: false })} · ` : ''}每 30 秒自動更新 · 時間僅供參考</p>
   </div>;
 }
 
 export default function BusApp() {
-  const [tab, setTab] = useState<'search' | 'favourites' | 'nearby'>('search');
+  const [tab, setTab] = useState<'search' | 'favourites' | 'nearby'>('nearby');
   const [query, setQuery] = useState('');
   const [company, setCompany] = useState<'all' | Company>('all');
   const [routes, setRoutes] = useState<Route[]>([]);
@@ -64,6 +64,8 @@ export default function BusApp() {
   const [showInstall, setShowInstall] = useState(false);
   const stopRequest = useRef(0);
   const nearRequest = useRef(0);
+  const located = useRef(false);
+  useEffect(() => { if (!located.current) { located.current = true; void locate(); } }, []);
 
   async function loadRoutes() {
     setLoading(true); setRouteError('');
@@ -101,7 +103,7 @@ export default function BusApp() {
   }
   function changeTab(value: typeof tab) { setTab(value); setRoute(null); setSelected(null); }
   async function locate() {
-    setNearBusy(true); setNearError(''); setNearRoutes(null); nearRequest.current++;
+    setNearBusy(true); setNearError(''); setNearby([]); setNearRoutes(null); nearRequest.current++;
     try {
       if (!navigator.geolocation) throw new Error('這個瀏覽器不支援定位。');
       const position = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }));
@@ -127,6 +129,17 @@ export default function BusApp() {
   function routeButton(r: Route, click: () => void, subtitle?: string) {
     return <button className="route-card" key={routeKey(r) + (subtitle || '')} onClick={click}><span className={`route-number ${r.company.toLowerCase()}`}>{r.route}</span><span className="route-body"><span className="route-company">{companyName(r.company)}{r.service !== '1' && ` · 特別班次 ${r.service}`}</span><strong><span className="towards">往</span> {r.to}</strong><span className="route-origin">{subtitle || `由 ${r.from} 開出`}</span></span><ChevronRight size={19} className="chevron" /></button>;
   }
+  function arrivalRow(f: Favourite) {
+    const saved = favourites.some(value => favouriteKey(value) === favouriteKey(f));
+    return <article className="arrival-row" key={favouriteKey(f)}>
+      <button className="arrival-open" onClick={() => { setRoute(f.route); setSelected(f); }}>
+        <span className={`route-number ${f.route.company.toLowerCase()}`}>{f.route.route}</span>
+        <span className="route-body"><strong><span className="towards">往</span> {f.route.to}</strong><span className="arrival-stop">{f.stop.name}</span><small className="route-company">{companyName(f.route.company)}{f.route.service !== '1' && ` · 特別班次 ${f.route.service}`}</small></span>
+      </button>
+      <EtaPanel selected={f} compact />
+      <button className={`icon-button row-star ${saved ? 'saved' : ''}`} aria-label={`${saved ? '取消收藏' : '收藏'}${f.route.route} ${f.stop.name}`} onClick={() => toggleFavourite(f)}><Star size={18} fill={saved ? 'currentColor' : 'none'} /></button>
+    </article>;
+  }
   return <div className="bus-app">
     <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><span className="brand-icon"><BusFront size={25} strokeWidth={2.2} /></span><span>就到站<span className="brand-en">HK BUS</span></span></a><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button></header>
     {!online && <div className="offline-banner" role="status"><WifiOff size={16} />目前離線 · 到站預報需要網絡連線</div>}
@@ -138,8 +151,8 @@ export default function BusApp() {
         return <div key={`${stop.id}-${stop.seq}`} className={`stop-item ${chosen ? 'selected' : ''}`}><div className="stop-line"><button className="stop-select" onClick={() => setSelected(chosen ? null : value)} aria-expanded={!!chosen}><span className="stop-seq">{stop.seq}</span><strong>{stop.name}</strong><ChevronRight size={17} /></button><button className={`icon-button star-button ${saved ? 'saved' : ''}`} aria-label={`${saved ? '取消收藏' : '收藏'}${stop.name}`} onClick={() => toggleFavourite(value)}><Star size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>{chosen && <EtaPanel key={favouriteKey(value)} selected={value} />}</div>;
       })}</div></section> : <>
         {tab === 'search' && <section className="search-section"><label className="search-box"><Search size={22} /><input aria-label="搜尋巴士路線或目的地" placeholder="輸入路線或目的地，例如 1A、旺角" value={query} onChange={e => setQuery(e.target.value)} autoComplete="off" />{query && <button aria-label="清除搜尋" className="icon-button" onClick={() => setQuery('')}><X size={18} /></button>}</label><div className="filter-row">{([{ id: 'all', name: '全部巴士' }, { id: 'KMB', name: '九巴 / 龍運' }, { id: 'CTB', name: '城巴' }] as const).map(c => <button aria-pressed={company === c.id} className={company === c.id ? 'chosen' : ''} key={c.id} onClick={() => setCompany(c.id)}>{c.name}</button>)}</div>{routeError && <div className="inline-error" role="alert">{routeError}<button onClick={() => void loadRoutes()}>重試</button></div>}<div className="section-label"><span>{query ? '搜尋結果' : '路線一覽'}</span><span>{loading ? '載入中' : `${filtered.length} 個方向及班次`}</span></div>{loading ? <p className="loading-message"><RefreshCw size={17} className="spin" />正在載入巴士路線…</p> : displayed.length ? <div className="route-grid">{displayed.map(r => routeButton(r, () => { setRoute(r); setSelected(null); }))}</div> : <div className="empty-state"><Search size={32} /><h2>找不到這條路線</h2><p>試試其他路線號碼或目的地。</p></div>}{filtered.length > 80 && <p className="list-note">顯示首 80 個結果，輸入路線或目的地可縮小範圍。</p>}</section>}
-        {tab === 'favourites' && <section><div className="section-label"><span>常用路線，隨手就睇</span><span>{favourites.length} 個收藏</span></div>{favourites.length ? <div className="favourite-list">{favourites.map(f => <article className="favourite-card" key={favouriteKey(f)}><div className="favourite-heading"><button className="favourite-open" onClick={() => { setRoute(f.route); setSelected(f); }}><span className={`route-number ${f.route.company.toLowerCase()}`}>{f.route.route}</span><span><small>往 {f.route.to}</small><strong>{f.stop.name}</strong></span></button><button className="icon-button saved" aria-label={`取消收藏${f.route.route} ${f.stop.name}`} onClick={() => toggleFavourite(f)}><Star size={20} fill="currentColor" /></button></div><EtaPanel selected={f} /></article>)}</div> : <div className="empty-state"><Star size={36} /><h2>把常搭的巴士，放在這裡。</h2><p>搜尋路線，按車站旁的星星加入收藏。<br />收藏只保存在目前的裝置。</p><button className="primary-button" onClick={() => changeTab('search')}>搜尋路線 <ArrowRight size={17} /></button></div>}</section>}
-        {tab === 'nearby' && <section><div className="nearby-intro"><span className="location-icon"><LocateFixed size={26} /></span><div><h2>附近有咩車搭？</h2><p>搜尋 1 公里內的九巴／龍運車站。<br />只在你按下定位時讀取位置，不會儲存。</p></div><button className="primary-button" disabled={nearBusy} onClick={() => void locate()}><LocateFixed size={17} />{nearBusy ? '查詢中…' : '找附近車站'}</button></div>{nearError && <p role="alert" className="error-text">{nearError}</p>}{nearBusy && <p className="loading-message"><RefreshCw size={17} className="spin" />正在查詢位置及車站資料…</p>}{nearRoutes !== null && <div className="near-routes"><div className="section-label"><span>{nearName} · 途經路線</span><button onClick={() => setNearRoutes(null)} className="text-button">收起</button></div>{nearRoutes.length ? nearRoutes.map(f => routeButton(f.route, () => { setRoute(f.route); setSelected(f); }, `第 ${f.stop.seq} 站 · ${f.stop.name}`)) : <p className="empty-message">暫時沒有途經路線資料。</p>}</div>}<div className="nearby-list">{nearby.map(stop => <button className="nearby-stop" key={stop.id} disabled={nearBusy || loading} onClick={() => void openNearby(stop)}><MapPin size={20} /><span><strong>{stop.name}</strong><small>九巴 / 龍運 · {stop.id}</small></span><b>{Math.round(stop.meters)} 米</b><ChevronRight size={17} /></button>)}</div><p className="list-note">城巴請使用「搜尋路線」查詢車站及到站時間。</p></section>}
+        {tab === 'favourites' && <section><div className="section-label"><span>常用路線，隨手就睇</span><span>{favourites.length} 個收藏</span></div>{favourites.length ? <div className="favourite-list">{favourites.map(f => arrivalRow(f))}</div> : <div className="empty-state"><Star size={36} /><h2>把常搭的巴士，放在這裡。</h2><p>搜尋路線，按車站旁的星星加入收藏。<br />收藏只保存在目前的裝置。</p><button className="primary-button" onClick={() => changeTab('search')}>搜尋路線 <ArrowRight size={17} /></button></div>}</section>}
+        {tab === 'nearby' && <section><div className="nearby-intro"><span className="location-icon"><LocateFixed size={26} /></span><div><h2>附近有咩車搭？</h2><p>搜尋 1 公里內的九巴／龍運車站。<br />開啟時請求定位，只讀取一次，不會儲存。</p></div><button className="primary-button" disabled={nearBusy} onClick={() => void locate()}><LocateFixed size={17} />{nearBusy ? '查詢中…' : '找附近車站'}</button></div>{nearError && <p role="alert" className="error-text">{nearError}</p>}{nearBusy && <p className="loading-message"><RefreshCw size={17} className="spin" />正在查詢位置及車站資料…</p>}{nearRoutes !== null && <div className="near-routes"><div className="section-label"><span>{nearName} · 途經路線</span><button onClick={() => setNearRoutes(null)} className="text-button">收起</button></div>{nearRoutes.length ? nearRoutes.map(f => arrivalRow(f)) : <p className="empty-message">暫時沒有途經路線資料。</p>}</div>}<div className="nearby-list">{nearby.map(stop => <button className="nearby-stop" key={stop.id} disabled={nearBusy || loading} onClick={() => void openNearby(stop)}><MapPin size={20} /><span><strong>{stop.name}</strong><small>九巴 / 龍運 · {stop.id}</small></span><b>{Math.round(stop.meters)} 米</b><ChevronRight size={17} /></button>)}</div><p className="list-note">城巴請使用「搜尋路線」查詢車站及到站時間。</p></section>}
       </>}
       <footer><span className="footer-brand"><BusFront size={17} /> 就到站</span><p>資料來自 <a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_21-etakmb" target="_blank" rel="noreferrer">九巴／龍運</a> 及 <a href="https://data.gov.hk/tc-data/dataset/ctb-eta-transport-realtime-eta" target="_blank" rel="noreferrer">城巴</a> 開放數據。<br />非官方應用程式 · 到站時間以巴士公司資料為準</p><span className="footer-note"><Clock3 size={13} /> 香港時間 UTC+8</span></footer>
     </main>
