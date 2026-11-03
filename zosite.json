@@ -1,0 +1,15 @@
+{
+  "name": "hk-bus",
+  "local_port": 57524,
+  "entrypoint": "bun run dev",
+  "publish": {
+    "label": "hk-bus",
+    "type": "http",
+    "entrypoint": "bun run prod",
+    "published_port": 57399,
+    "env": {
+      "NODE_ENV": "production",
+      "ZO_CLIENT_IDENTITY_TOKEN": "none"
+    }
+  }
+}
