@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
-import { arrivalLabel, arrivalsFor, distance, nearbyArrivals, sortNearby, searchStops, routesAtStop, type Route } from './bus';
+import { arrivalLabel, arrivalsFor, distance, nearbyArrivals, nearestRoutes, sortNearby, searchStops, routesAtStop, type Route } from './bus';
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 const route: Route = { company: 'KMB', route: '1', bound: 'O', service: '1', from: '竹園邨', to: '尖沙咀碼頭' };
@@ -81,4 +81,16 @@ test('nearby stop ETA matches route, direction, service and sequence; failures a
   const workingFetch = globalThis.fetch;
   globalThis.fetch = (async (url, options) => String(url).includes('/stop-eta/') ? new Response('', { status: 503 }) : workingFetch(url, options)) as typeof fetch;
   expect((await nearbyArrivals(nearby, [route]))[0].error).toBe(true);
+});
+
+test('nearby groups use nearest stop per direction, merge services without duplicate ETAs and cap at three', () => {
+  const eta = (minute: number) => ({ eta: new Date(Date.now() + minute * 60000).toISOString(), seq: minute, remark: '' });
+  const base = { route, stop, meters: 50, error: false, arrivals: [eta(2), eta(5)] };
+  const result = nearestRoutes([ { ...base, meters: 200, stop: { ...stop, id: 'FAR' }, arrivals: [eta(1)] }, base,
+    { ...base, route: { ...route, service: '2' }, arrivals: [base.arrivals[0], eta(8), eta(10)] },
+    { ...base, route: { ...route, bound: 'I' } } ]);
+  expect(result).toHaveLength(2);
+  expect(result[0].stop.id).toBe(stop.id);
+  expect(result[0].arrivals.map(a => a.seq)).toEqual([2, 5, 8]);
+  expect(result[1].route.bound).toBe('I');
 });

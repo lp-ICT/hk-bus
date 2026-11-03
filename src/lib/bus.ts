@@ -4,11 +4,14 @@ export type Stop = { id: string; name: string; lat: number; lng: number; seq: nu
 export type Favourite = { route: Route; stop: Stop };
 export type Arrival = { eta: string | null; remark: string; seq: number };
 const bases = { KMB: 'https://data.etabus.gov.hk/v1/transport/kmb', CTB: 'https://rt.data.gov.hk/v2/transport/citybus' };
+const memory = new Map<string, { at: number; value: unknown }>();
 const requests = new Map<string, Promise<unknown>>();
 
 async function data<T>(url: string, cache = true): Promise<T> {
   const key = `bus-v1:${url}`;
   if (cache) {
+    const hit = typeof window !== 'undefined' ? memory.get(url) : undefined;
+    if (hit && Date.now() - hit.at < 86400000) return hit.value as T;
     try {
       const saved = JSON.parse(localStorage.getItem(key) || 'null');
       if (saved && Date.now() - saved.at < 86400000) return saved.value;
@@ -21,6 +24,7 @@ async function data<T>(url: string, cache = true): Promise<T> {
     const json = await response.json();
     if (!('data' in json)) throw new Error('收到的巴士資料不完整。');
     if (cache) {
+      if (typeof window !== 'undefined') memory.set(url, { at: Date.now(), value: json.data });
       try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), value: json.data })); } catch {}
     }
     return json.data as T;
@@ -113,10 +117,26 @@ export async function nearbyArrivals(stop: Stop & { meters: number }, routes: Ro
       .filter(row => String(row.route) === entry.route.route && String(row.dir) === entry.route.bound && String(row.service_type) === entry.route.service && Number(row.seq) === entry.stop.seq)
       .map(row => ({ eta: row.eta ? String(row.eta) : null, remark: String(row.rmk_tc || ''), seq: Number(row.eta_seq) }))
       .filter(row => !row.eta || Date.parse(row.eta) > Date.now() - 60000)
-      .sort((a, b) => a.seq - b.seq).slice(0, 2) }));
+      .sort((a, b) => a.seq - b.seq).slice(0, 3) }));
   } catch { return entries.map(entry => ({ ...entry, meters: stop.meters, arrivals: [], error: true })); }
 }
 export function sortNearby(rows: NearbyArrival[], now = Date.now()) {
   const first = (row: NearbyArrival) => Math.min(...row.arrivals.map(a => a.eta ? Date.parse(a.eta) : Infinity).filter(time => Number.isFinite(time) && time > now - 60000));
   return [...rows].sort((a, b) => first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
+}
+
+export function nearestRoutes(rows: NearbyArrival[]): NearbyArrival[] {
+  const groups = new Map<string, NearbyArrival[]>();
+  for (const row of rows) {
+    const key = `${row.route.company}-${row.route.route}-${row.route.bound}`;
+    groups.set(key, [...(groups.get(key) || []), row]);
+  }
+  return [...groups.values()].map(group => {
+    group.sort((a, b) => a.meters - b.meters || a.stop.seq - b.stop.seq || a.route.service.localeCompare(b.route.service, 'en', { numeric: true }));
+    const nearest = group[0];
+    const sameStop = group.filter(row => row.stop.id === nearest.stop.id && row.stop.seq === nearest.stop.seq);
+    const arrivals = sameStop.flatMap(row => row.arrivals).filter(a => a.eta && Number.isFinite(Date.parse(a.eta)))
+      .sort((a, b) => Date.parse(a.eta!) - Date.parse(b.eta!));
+    return { ...nearest, error: sameStop.every(row => row.error), arrivals: arrivals.filter((a, i) => i === 0 || a.eta !== arrivals[i - 1].eta).slice(0, 3) };
+  });
 }
