@@ -49,4 +49,4 @@ bun test
 
 `bun run build` 產生 `dist/`，並建立 service worker。須在 HTTPS 或 localhost 使用 PWA；即時到站及首次下載路線需要連線。Zo 原有開發伺服器由平台管理，不應手動啟動 `bun run dev` 或 `bun run prod`。
 
-原始碼儲存庫：https://github.com/lp-ICT/hk-bus 。GitHub 儲存庫用於版本管理；網站託管另行管理，上傳程式碼不會自動部署網站。
+原始碼儲存庫：https://github.com/lp-ICT/hk-bus 。網站：https://lp-ICT.github.io/hk-bus/ 。GitHub Pages 從 gh-pages 分支發佈建置後的網站；更新 main 後須重新驗證、建置並更新 gh-pages。以 `BASE_PATH=/hk-bus/ bun run build` 建立 GitHub Pages 版本；預設路徑仍適用其他靜態託管。

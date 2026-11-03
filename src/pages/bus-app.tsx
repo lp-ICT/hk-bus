@@ -79,7 +79,7 @@ export default function BusApp() {
     const prompt = (e: Event) => { e.preventDefault(); setInstall(e as InstallEvent); };
     window.addEventListener('online', status); window.addEventListener('offline', status);
     window.addEventListener('beforeinstallprompt', prompt);
-    if (import.meta.env.PROD && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+    if (import.meta.env.PROD && 'serviceWorker' in navigator) navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {});
     return () => { window.removeEventListener('online', status); window.removeEventListener('offline', status); window.removeEventListener('beforeinstallprompt', prompt); };
   }, []);
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 4000); return () => clearTimeout(timer); }, [notice]);
@@ -128,7 +128,7 @@ export default function BusApp() {
     return <button className="route-card" key={routeKey(r) + (subtitle || '')} onClick={click}><span className={`route-number ${r.company.toLowerCase()}`}>{r.route}</span><span className="route-body"><span className="route-company">{companyName(r.company)}{r.service !== '1' && ` · 特別班次 ${r.service}`}</span><strong><span className="towards">往</span> {r.to}</strong><span className="route-origin">{subtitle || `由 ${r.from} 開出`}</span></span><ChevronRight size={19} className="chevron" /></button>;
   }
   return <div className="bus-app">
-    <header className="app-header"><a className="brand" href="/" aria-label="就到站首頁"><span className="brand-icon"><BusFront size={25} strokeWidth={2.2} /></span><span>就到站<span className="brand-en">HK BUS</span></span></a><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button></header>
+    <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><span className="brand-icon"><BusFront size={25} strokeWidth={2.2} /></span><span>就到站<span className="brand-en">HK BUS</span></span></a><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button></header>
     {!online && <div className="offline-banner" role="status"><WifiOff size={16} />目前離線 · 到站預報需要網絡連線</div>}
     <main>
       <section className="intro"><div className="eyebrow"><span /> HONG KONG, ON THE MOVE</div><h1>下一班，<span>幾時到？</span></h1><p>查路線、睇到站，出門心中有數。</p><span className="coverage">九巴 · 龍運 · 城巴</span></section>
