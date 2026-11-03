@@ -49,4 +49,4 @@ bun test
 
 `bun run build` 產生 `dist/`，並建立 service worker。須在 HTTPS 或 localhost 使用 PWA；即時到站及首次下載路線需要連線。Zo 原有開發伺服器由平台管理，不應手動啟動 `bun run dev` 或 `bun run prod`。
 
-Sites 託管預設只有擁有者可用。GitHub 連接已確認，但連接器未提供建立新儲存庫功能，命令列亦未授權；私人 GitHub 儲存庫尚未建立，不應把 Sites 內部來源儲存庫當作使用者的 GitHub 儲存庫。
+原始碼儲存庫：https://github.com/lp-ICT/hk-bus 。GitHub 儲存庫用於版本管理；網站託管另行管理，上傳程式碼不會自動部署網站。
