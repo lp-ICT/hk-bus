@@ -47,6 +47,14 @@ export async function allKmbStops(): Promise<Stop[]> {
   return rows.map(row => ({ id: String(row.stop), name: String(row.name_tc), lat: Number(row.lat), lng: Number(row.long), seq: 0 }));
 }
 
+export function searchStops(stops: Stop[], query: string): Stop[] {
+  const normalize = (value: string) => value.normalize('NFKC').replace(/\s+/g, '').toUpperCase();
+  const term = normalize(query);
+  if (!term) return [];
+  return stops.filter(stop => normalize(stop.name).includes(term) || normalize(stop.id) === term)
+    .sort((a, b) => Number(normalize(b.name) === term) - Number(normalize(a.name) === term) || a.name.localeCompare(b.name, 'zh-HK') || a.id.localeCompare(b.id));
+}
+
 export async function stopsFor(route: Route): Promise<Stop[]> {
   const direction = route.bound === 'O' ? 'outbound' : 'inbound';
   const path = route.company === 'KMB' ? `/route-stop/${route.route}/${direction}/${route.service}` : `/route-stop/CTB/${route.route}/${direction}`;

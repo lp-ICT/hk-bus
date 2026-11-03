@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
-import { arrivalLabel, arrivalsFor, distance, type Route } from './bus';
+import { arrivalLabel, arrivalsFor, distance, searchStops, routesAtStop, type Route } from './bus';
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 const route: Route = { company: 'KMB', route: '1', bound: 'O', service: '1', from: '竹園邨', to: '尖沙咀碼頭' };
@@ -39,4 +39,24 @@ test('ETA shows only the first two predictions in sequence for both companies', 
     const arrivals = await arrivalsFor({ ...route, company }, stop);
     expect(arrivals.map(arrival => arrival.seq)).toEqual([1, 2]);
   }
+});
+
+test('station search matches places, normalizes spaces, keeps opposite stop IDs and ranks exact names first', () => {
+  const stops = [{ ...stop, id: 'A', name: '田寮新村' }, { ...stop, id: 'B', name: '田寮新村' }, { ...stop, id: 'C', name: '田寮新村巴士總站' }, { ...stop, id: 'D', name: '旺角道' }];
+  expect(searchStops(stops, ' 田寮 新村 ').map(s => s.id)).toEqual(['A', 'B', 'C']);
+  expect(searchStops(stops, '旺角').map(s => s.id)).toEqual(['D']);
+  expect(searchStops(stops, 'b').map(s => s.id)).toEqual(['B']);
+  expect(searchStops(stops, '   ')).toEqual([]);
+  expect(searchStops(stops, '不存在')).toEqual([]);
+});
+test('station routes retain direction, special service and repeated stop sequences', async () => {
+  globalThis.fetch = (async (url: string | URL | Request) => new Response(JSON.stringify({ data: String(url).endsWith('/route-stop') ? [
+    { stop: 'SEARCH-STOP', route: '1', bound: 'O', service_type: 1, seq: 3 },
+    { stop: 'SEARCH-STOP', route: '1', bound: 'O', service_type: 1, seq: 18 },
+    { stop: 'SEARCH-STOP', route: '1', bound: 'I', service_type: 2, seq: 4 },
+    { stop: 'OTHER', route: '1', bound: 'O', service_type: 1, seq: 1 },
+  ] : [{ stop: 'SEARCH-STOP', name_tc: '田寮新村', lat: '22.3', long: '114.1' }] }))) as unknown as typeof fetch;
+  const special = { ...route, bound: 'I', service: '2' };
+  const result = await routesAtStop('SEARCH-STOP', [route, special, { ...route, company: 'CTB' }]);
+  expect(result.map(f => [f.route.company, f.route.bound, f.route.service, f.stop.seq])).toEqual([['KMB', 'O', '1', 3], ['KMB', 'O', '1', 18], ['KMB', 'I', '2', 4]]);
 });
