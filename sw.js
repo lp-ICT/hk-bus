@@ -1,5 +1,5 @@
-const CACHE = 'bus-shell-20066d7fd735';
-const FILES = ["/hk-bus/","/hk-bus/manifest.webmanifest","/hk-bus/icons/icon-192.png","/hk-bus/icons/icon-512.png","/hk-bus/icons/maskable-512.png","/hk-bus/icons/apple-touch-icon.png","/hk-bus/assets/index-DzWA2HEP.css","/hk-bus/assets/index-yxDcfvMQ.js"];
+const CACHE = 'bus-shell-31a4c92a3076';
+const FILES = ["/hk-bus/","/hk-bus/manifest.webmanifest","/hk-bus/icons/icon-192.png","/hk-bus/icons/icon-512.png","/hk-bus/icons/maskable-512.png","/hk-bus/icons/apple-touch-icon.png","/hk-bus/assets/index-D5Z4uWsb.css","/hk-bus/assets/index-fV9eg8N2.js"];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('bus-shell-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', event => {
