@@ -103,3 +103,20 @@ export function arrivalLabel(eta: string | null, now = Date.now()) {
   const minutes = Math.ceil((Date.parse(eta) - now) / 60000);
   return minutes <= 1 ? '即將到站' : `${minutes} 分鐘`;
 }
+
+export type NearbyArrival = Favourite & { meters: number; arrivals: Arrival[]; error: boolean };
+export async function nearbyArrivals(stop: Stop & { meters: number }, routes: Route[]): Promise<NearbyArrival[]> {
+  const entries = await routesAtStop(stop.id, routes);
+  try {
+    const rows = await data<Raw[]>(`${bases.KMB}/stop-eta/${stop.id}`, false);
+    return entries.map(entry => ({ ...entry, meters: stop.meters, error: false, arrivals: rows
+      .filter(row => String(row.route) === entry.route.route && String(row.dir) === entry.route.bound && String(row.service_type) === entry.route.service && Number(row.seq) === entry.stop.seq)
+      .map(row => ({ eta: row.eta ? String(row.eta) : null, remark: String(row.rmk_tc || ''), seq: Number(row.eta_seq) }))
+      .filter(row => !row.eta || Date.parse(row.eta) > Date.now() - 60000)
+      .sort((a, b) => a.seq - b.seq).slice(0, 2) }));
+  } catch { return entries.map(entry => ({ ...entry, meters: stop.meters, arrivals: [], error: true })); }
+}
+export function sortNearby(rows: NearbyArrival[], now = Date.now()) {
+  const first = (row: NearbyArrival) => Math.min(...row.arrivals.map(a => a.eta ? Date.parse(a.eta) : Infinity).filter(time => Number.isFinite(time) && time > now - 60000));
+  return [...rows].sort((a, b) => first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
+}
