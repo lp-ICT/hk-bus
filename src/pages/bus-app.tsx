@@ -3,6 +3,9 @@ import { ArrowDownUp, ArrowLeft, ArrowRight, BusFront, ChevronRight, Clock3, Dow
 import { allTransitStops, nearbyStops, distanceLabel, noArrivalMessage, arrivalLabel, arrivalsFor, companyName, distance, favouriteKey, routeKey, routesFor, stopsFor, type Arrival, type Company, type Favourite, type Route, type Stop } from '../lib/bus';
 
 import StopSearch from './stop-search';
+import RouteMap from './route-map';
+import RouteTimetable from './route-timetable';
+import { nearestRouteStop } from '../lib/route-tools';
 import JourneyPlanner, { PlaceInput } from './journey-planner';
 import type { Place } from '../lib/journey';
 import NearbyRoutes from './nearby-routes';
@@ -70,6 +73,7 @@ export default function BusApp() {
   const [routeError, setRouteError] = useState('');
   const [route, setRoute] = useState<Route | null>(null);
   const [stops, setStops] = useState<Stop[]>([]);
+  const [loadedRoute, setLoadedRoute] = useState('');
   const [stopError, setStopError] = useState('');
   const [stopLoading, setStopLoading] = useState(false);
   const [selected, setSelected] = useState<Favourite | null>(null);
@@ -92,6 +96,10 @@ export default function BusApp() {
   const [showQr, setShowQr] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const stopRequest = useRef(0);
+  const [showMap, setShowMap] = useState(true);
+  const [showTimetable, setShowTimetable] = useState(false);
+  const stopList = useRef<HTMLDivElement>(null);
+  const autoLocated = useRef('');
   const located = useRef(false);
   const startupDeadline = useRef(Date.now() + 30000);
   const locationReady = useRef(false);
@@ -134,13 +142,38 @@ export default function BusApp() {
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 4000); return () => clearTimeout(timer); }, [notice]);
   useEffect(() => {
     const id = ++stopRequest.current;
-    setStops([]); setStopError('');
+    setStops([]); setLoadedRoute(''); setStopError('');
     if (!route) { setStopLoading(false); return; }
     setStopLoading(true);
-    stopsFor(route).then(value => { if (id === stopRequest.current) setStops(value); })
+    stopsFor(route).then(value => { if (id === stopRequest.current) { setStops(value); setLoadedRoute(routeKey(route)); } })
       .catch(() => { if (id === stopRequest.current) setStopError('未能載入車站，請重新選擇路線重試。'); })
       .finally(() => { if (id === stopRequest.current) setStopLoading(false); });
   }, [route]);
+
+  useEffect(() => { autoLocated.current = ''; setShowTimetable(false); }, [route]);
+  useEffect(() => {
+    if (!route || loadedRoute !== routeKey(route) || stopLoading || !stops.length) return;
+    const key = `${routeKey(route)}-${deviceLocation ? 'device' : position ? 'manual' : 'entry'}`;
+    if (autoLocated.current === key) return;
+    const closest = nearestRouteStop(stops, deviceLocation || position);
+    const target = closest || selected?.stop;
+    if (!target) return;
+    autoLocated.current = key;
+    setSelected({ route, stop: target });
+    const frame = requestAnimationFrame(() => {
+      const list = stopList.current;
+      const item = list?.querySelector<HTMLElement>(`[data-stop-seq="${target.seq}"]`);
+      if (list && item) list.scrollTop = item.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [route, loadedRoute, stops, stopLoading, deviceLocation, position]);
+  function selectMapStop(stop: Stop) {
+    if (!route) return;
+    setSelected({ route, stop });
+    const list = stopList.current;
+    const item = list?.querySelector<HTMLElement>(`[data-stop-seq="${stop.seq}"]`);
+    if (list && item) list.scrollTo({ top: item.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop, behavior: 'smooth' });
+  }
 
   function toggleFavourite(value: Favourite) {
     const exists = favourites.some(f => favouriteKey(f) === favouriteKey(value));
@@ -214,9 +247,9 @@ export default function BusApp() {
       <nav className="tab-bar" aria-label="主要功能">{([{ id: 'search', label: '搜尋路線', icon: Search }, { id: 'favourites', label: '我的收藏', icon: Star }, { id: 'nearby', label: '附近路線', icon: MapPin }, { id: 'school', label: '放學啦', icon: BusFront }, { id: 'toSchool', label: '返學啦', icon: BusFront }] as const).map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => changeTab(item.id)}><item.icon size={19} />{item.label}{item.id === 'favourites' && favourites.length > 0 && <span className="count">{favourites.length}</span>}</button>)}</nav>
       <div className="current-location" role="status" aria-live="polite"><MapPin size={17} /><div><strong>目前裝置位置</strong>{gpsStatus === 'loading' && <span>正在取得定位…</span>}{gpsStatus === 'error' && <span>{gpsError}{deviceLocation ? ' 以下為上次成功定位，並非最新位置。' : ''}</span>}{deviceLocation && <><span>{locationLandmark ? `鄰近 ${locationLandmark} · ` : ''}緯度 {deviceLocation.lat.toFixed(5)}，經度 {deviceLocation.lng.toFixed(5)}</span><small>精確度約 {Math.round(deviceLocation.accuracy)} 米 · {new Date(deviceLocation.time).toLocaleTimeString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} 取得{deviceLocation.accuracy > 500 ? ' · 定位範圍較大' : ''}</small></>}{manualPlace && <span>路線查詢使用手動位置：{manualPlace.name}（並非裝置定位）</span>}</div></div>
       <ConnectionStatus />
-      {route ? <section className="route-detail"><button className="back-button" onClick={() => { setRoute(null); setSelected(null); }}><ArrowLeft size={17} />返回路線</button><div className="detail-heading"><span className={`route-number ${route.company.toLowerCase()}`}>{route.route}</span><div><small>{companyName(route.company)}{route.company !== 'GMB' && route.service !== '1' ? ` · 特別班次 ${route.service}` : ''}</small><h2>往 {route.to}</h2><p>由 {route.from} 開出</p></div><button className="icon-button switch-button" aria-label="切換方向" disabled={!routes.some(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound)} onClick={() => { const reverse = routes.find(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound && r.service === route.service) || routes.find(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound); if (reverse) { setRoute(reverse); setSelected(null); } }}><ArrowDownUp size={21} /></button></div><div className="section-label"><span>選擇上車站</span><span>{stops.length} 個車站</span></div>{stopLoading && <p className="loading-message"><RefreshCw size={17} className="spin" />正在載入車站…</p>}{stopError && <p className="error-text" role="alert">{stopError}</p>}{!stopLoading && !stopError && !stops.length && <p className="empty-message">這個方向暫時沒有車站資料，請切換方向。</p>}<div className="stop-list">{stops.map(stop => {
+      {route ? <section className="route-detail"><button className="back-button" onClick={() => { setRoute(null); setSelected(null); }}><ArrowLeft size={17} />返回路線</button><div className="detail-heading"><span className={`route-number ${route.company.toLowerCase()}`}>{route.route}</span><div><small>{companyName(route.company)}{route.company !== 'GMB' && route.service !== '1' ? ` · 特別班次 ${route.service}` : ''}</small><h2>往 {route.to}</h2><p>由 {route.from} 開出</p></div><button className="icon-button switch-button" aria-label="切換方向" disabled={!routes.some(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound)} onClick={() => { const reverse = routes.find(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound && r.service === route.service) || routes.find(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound); if (reverse) { setRoute(reverse); setSelected(null); } }}><ArrowDownUp size={21} /></button></div><div className="route-tools"><button className="text-button" aria-expanded={showMap} onClick={() => setShowMap(value => !value)}>{showMap ? '收起地圖' : '顯示地圖'}</button><button className="text-button" aria-expanded={showTimetable} onClick={() => setShowTimetable(value => !value)}>時間表／服務時間</button></div>{showTimetable && <RouteTimetable key={routeKey(route)} route={route} />}{showMap && <RouteMap stops={stops} position={deviceLocation || position} selected={selected?.stop || null} onSelect={selectMapStop} />}<div className="section-label"><span>選擇上車站</span><span>{stops.length} 個車站</span></div>{stopLoading && <p className="loading-message"><RefreshCw size={17} className="spin" />正在載入車站…</p>}{stopError && <p className="error-text" role="alert">{stopError}</p>}{!stopLoading && !stopError && !stops.length && <p className="empty-message">這個方向暫時沒有車站資料，請切換方向。</p>}<div className="stop-list route-stop-scroll" ref={stopList}>{stops.map(stop => {
         const value = { route, stop }; const chosen = selected && favouriteKey(selected) === favouriteKey(value); const saved = favourites.some(f => favouriteKey(f) === favouriteKey(value));
-        return <div key={`${stop.id}-${stop.seq}`} className={`stop-item ${chosen ? 'selected' : ''}`}><div className="stop-line"><button className="stop-select" onClick={() => setSelected(chosen ? null : value)} aria-expanded={!!chosen}><span className="stop-seq">{stop.seq}</span><strong>{stop.name}{position && <small className="stop-distance">{distanceLabel(distance(position.lat, position.lng, stop))}</small>}</strong><ChevronRight size={17} /></button><button className={`icon-button star-button ${saved ? 'saved' : ''}`} aria-label={`${saved ? '取消收藏' : '收藏'}${stop.name}`} onClick={() => toggleFavourite(value)}><Star size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>{chosen && <EtaPanel key={favouriteKey(value)} selected={value} />}</div>;
+        return <div data-stop-seq={stop.seq} key={`${stop.id}-${stop.seq}`} className={`stop-item ${chosen ? 'selected' : ''}`}><div className="stop-line"><button className="stop-select" onClick={() => setSelected(chosen ? null : value)} aria-expanded={!!chosen}><span className="stop-seq">{stop.seq}</span><strong>{stop.name}{position && <small className="stop-distance">{distanceLabel(distance(position.lat, position.lng, stop))}</small>}</strong><ChevronRight size={17} /></button><button className={`icon-button star-button ${saved ? 'saved' : ''}`} aria-label={`${saved ? '取消收藏' : '收藏'}${stop.name}`} onClick={() => toggleFavourite(value)}><Star size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>{chosen && <EtaPanel key={favouriteKey(value)} selected={value} />}</div>;
       })}</div></section> : <>
         {tab === 'search' && <div className="filter-row search-modes" aria-label="搜尋方式"><button className={searchMode === 'route' ? 'chosen' : ''} aria-pressed={searchMode === 'route'} onClick={() => setSearchMode('route')}>路線／車站</button><button className={searchMode === 'journey' ? 'chosen' : ''} aria-pressed={searchMode === 'journey'} onClick={() => setSearchMode('journey')}>起點 → 目的地</button></div>}
         {tab === 'search' && searchMode === 'journey' && <JourneyPlanner routes={routes} loadingRoutes={loading} position={position} favourites={favourites} onToggleFavourite={toggleFavourite} onSelect={value => { setRoute(value.route); setSelected(value); }} />}

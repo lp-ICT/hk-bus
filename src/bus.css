@@ -35,3 +35,11 @@
 .school-crest{width:42px;height:52px;object-fit:contain;flex-shrink:0}.school-sides{flex-wrap:wrap}.school-sides button{min-width:90px}@media(max-width:420px){.school-crest{width:34px;height:45px}}
 
 .current-location{display:flex;align-items:flex-start;gap:8px;margin:12px 0;padding:10px 12px;background:#f8f5f5;border:1px solid #eee2e3;border-radius:8px;font-size:12px;line-height:1.7;overflow-wrap:anywhere}.current-location>svg{flex-shrink:0;margin-top:3px}.current-location strong,.current-location span,.current-location small{display:block}.current-location small{color:#706b69;font-size:11px}
+
+.route-map { height: 290px; width: 100%; border-radius: 14px; z-index: 0; }
+.route-tools { display: flex; flex-wrap: wrap; gap: 12px; margin: 14px 0; }
+.route-stop-scroll { max-height: 60vh; overflow-y: auto; position: relative; overscroll-behavior: contain; }
+.route-timetable { padding: 16px; border: 1px solid #d5ded8; border-radius: 14px; margin-bottom: 16px; }
+.timetable-row { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 12px 0; border-bottom: 1px solid #d5ded8; }
+.timetable-row strong { width: 100%; }
+@media (max-width: 480px) { .route-map { height: 240px; } }
