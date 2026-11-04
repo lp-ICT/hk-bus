@@ -16,3 +16,5 @@
 .pull-refresh-indicator { position: fixed; top: env(safe-area-inset-top, 0px); left: 50%; z-index: 100; display: flex; align-items: center; gap: 8px; width: max-content; max-width: 90vw; padding: 12px 18px; border: 1px solid #eadcdd; border-radius: 24px; background: #fff; color: #b71926; box-shadow: 0 4px 18px #0002; font-size: 14px; pointer-events: none; }
 
 .compact-eta .eta-times{grid-template-columns:1fr}.compact-eta .eta-times>div{display:flex;align-items:baseline;justify-content:flex-end;gap:5px;flex-wrap:wrap}.compact-eta .eta-times .eta-caption{margin:0}.compact-eta .eta-times small{flex-basis:100%}
+
+@media(max-width:650px){.tab-bar>button{flex:1;justify-content:center;flex-direction:column;gap:3px;padding:11px 2px;font-size:12px;position:relative}.tab-bar .count{position:absolute;top:5px;right:4px}}
