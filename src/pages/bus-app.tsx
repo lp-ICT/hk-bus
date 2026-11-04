@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownUp, ArrowLeft, ArrowRight, BusFront, ChevronRight, Clock3, Download, MapPin, QrCode, RefreshCw, Search, Star, WifiOff, X } from 'lucide-react';
+import { ArrowDownUp, ArrowLeft, ArrowRight, BusFront, ChevronRight, Clock3, Download, MapPin, Share2, RefreshCw, Search, Star, WifiOff, X } from 'lucide-react';
 import { allTransitStops, nearbyStops, distanceLabel, noArrivalMessage, arrivalLabel, arrivalsFor, companyName, distance, favouriteKey, routeKey, routesFor, stopsFor, type Arrival, type Company, type Favourite, type Route, type Stop } from '../lib/bus';
 
 import StopSearch from './stop-search';
@@ -244,7 +244,7 @@ export default function BusApp() {
   }
   return <div className="bus-app">
     <PullRefresh enabled={tab === 'nearby' && !route && !showInstall && !showQr} busy={nearBusy || loading} onRefresh={refreshNearby} />
-    <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><img className="school-crest" src={import.meta.env.BASE_URL + "school-crest.png"} alt="聖公會李炳中學校章" /><span>就到站<span className="brand-en app-version">v{import.meta.env.VITE_APP_VERSION}</span></span></a><div className="header-actions"><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button><button className="install-button qr-button" aria-label="顯示網站 QR code" title="顯示網站 QR code" onClick={() => setShowQr(true)}><QrCode size={18} /><span>QR code</span></button></div></header>
+    <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><img className="school-crest" src={import.meta.env.BASE_URL + "school-crest.png"} alt="聖公會李炳中學校章" /><span>就到站<span className="brand-en app-version">v{import.meta.env.VITE_APP_VERSION}</span></span></a><div className="header-actions"><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button><button className="install-button qr-button" aria-label="分享網站" title="分享網站" onClick={() => setShowQr(true)}><Share2 size={18} /><span>分享</span></button></div></header>
     {!online && <div className="offline-banner" role="status"><WifiOff size={16} />目前離線 · 到站預報需要網絡連線</div>}
     <main>
       <nav className="tab-bar" aria-label="主要功能">{([{ id: 'search', label: '搜尋路線', icon: Search }, { id: 'favourites', label: '我的收藏', icon: Star }, { id: 'nearby', label: '附近路線', icon: MapPin }, { id: 'school', label: '放學啦', icon: BusFront }, { id: 'toSchool', label: '返學啦', icon: BusFront }] as const).map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => changeTab(item.id)}><item.icon size={19} />{item.label}{item.id === 'favourites' && favourites.length > 0 && <span className="count">{favourites.length}</span>}</button>)}</nav>

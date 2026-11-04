@@ -155,3 +155,11 @@ test('school journey planning does not let remote direct routes hide reachable t
   expect(result[0].route.route).toBe('40X');
   expect(result[0].transfer?.leg.route.route).toBe('SECOND');
 });
+
+test('destination planning compares direct and transfer candidates together', () => {
+  const second = { ...route, route: 'SECOND' };
+  const links = [...rows, { ...rows[1], route: second.route, seq: 1 }, { ...rows[2], route: second.route, seq: 2 }];
+  const result = planJourneys([route, second], stops, links, start, end);
+  expect(result.some(journey => !journey.transfer)).toBe(true);
+  expect(result.some(journey => journey.transfer?.leg.route.route === 'SECOND')).toBe(true);
+});

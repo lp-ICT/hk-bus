@@ -29,3 +29,6 @@ for (const [name, url] of Object.entries(sources)) {
   }
   if (!saved) throw new Error(`Missing metadata: ${name}`);
 }
+
+const timeBuild = Bun.spawnSync(['python', 'scripts/build-journey-times.py'], { stdout: 'inherit', stderr: 'inherit' });
+if (timeBuild.exitCode !== 0) throw new Error('Cannot build official journey time reference');

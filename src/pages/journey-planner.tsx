@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { withJourneyTimes, estimateJourney, estimateClock, compareJourneyArrival, type TimedJourney } from '../lib/journey-time';
 import { MapPin, Search, Star } from 'lucide-react';
 import { arrivalLabel, arrivalsFor, companyName, routeDescription, favouriteKey, noArrivalMessage, routeKey, type Arrival, type Favourite, type Route } from '../lib/bus';
 import { currentPlace, directJourneys, journeyLegs, journeyGraph, schoolPlace, schoolDestinationStops, searchPlaces, type Journey, type Place } from '../lib/journey';
@@ -34,10 +35,9 @@ export function PlaceInput({ label, value, onChange }: { label: string; value: P
   </div>;
 }
 
-type TimedJourney = Journey & { arrivals: Arrival[]; updated: number; error: boolean; secondArrivals?: Arrival[]; legArrivals?: Arrival[][] };
 export function sortJourneys(rows: TimedJourney[], now: number) {
   const first = (row: TimedJourney) => Math.min(...row.arrivals.filter(arrival => arrival.eta && Date.parse(arrival.eta) > now - 60000).map(arrival => Date.parse(arrival.eta!)));
-  return [...rows].sort((a, b) => Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
+  return [...rows].sort((a, b) => compareJourneyArrival(a, b, now) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
 }
 const journeyKey = (journey: Journey) => journeyLegs(journey).map(leg => routeKey(leg.route) + '-' + leg.stop.id + '-' + leg.stop.seq + '-' + leg.alight.id + '-' + leg.alight.seq).join('/');
 
@@ -57,17 +57,23 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
       let failed = false;
       try {
         const updated = new Map<string, TimedJourney>();
+        const forecasts = new Map<string, Promise<Arrival[]>>();
+        const forecast = (leg: Journey) => {
+          const key = favouriteKey(leg);
+          if (!forecasts.has(key)) forecasts.set(key, arrivalsFor(leg.route, leg.stop));
+          return forecasts.get(key)!;
+        };
         for (let offset = 0; offset < journeys.length; offset += 5) {
           const results = await Promise.all(journeys.slice(offset, offset + 5).map(async journey => {
             try {
-              const legArrivals = await Promise.all(journeyLegs(journey).map(leg => arrivalsFor(leg.route, leg.stop)));
-              const [arrivals, secondArrivals] = legArrivals;
-              return { ...journey, arrivals, secondArrivals, legArrivals, updated: Date.now(), error: false };
+              const legArrivals = await Promise.all(journeyLegs(journey).map(forecast));
+              const [arrivals] = legArrivals;
+              return { ...journey, arrivals, legArrivals, updated: Date.now(), error: false };
             }
             catch {
               failed = true;
               const old = saved.find(row => journeyKey(row) === journeyKey(journey));
-              return { ...journey, arrivals: old?.arrivals || [], secondArrivals: old?.secondArrivals, legArrivals: old?.legArrivals, updated: old?.updated || 0, error: true };
+              return { ...journey, arrivals: old?.arrivals || [], legArrivals: old?.legArrivals, updated: old?.updated || 0, error: true };
             }
           }));
           if (cancelled) return;
@@ -94,9 +100,15 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
     {display.map((row, index) => {
       const saved = favourites.some(favourite => favouriteKey(favourite) === favouriteKey(row));
       const arrivals = row.arrivals.filter(arrival => arrival.eta && Date.parse(arrival.eta) > now - 60000).slice(0, 3);
+      const estimate = estimateJourney(row, now);
       const stale = !!row.updated && (row.error || now - row.updated > 90000);
       return <div key={journeyKey(row)}>
-        {school && (index === 0 || display[index - 1].nearby !== row.nearby) && <h3 className="journey-group">{row.nearby ? '由你附近出發 · 最快到站優先' : '其他可到校路線 · 最快到站優先'}</h3>}
+        {school && (index === 0 || display[index - 1].nearby !== row.nearby) && <h3 className="journey-group">{row.nearby ? '由你附近出發 · 預計最快抵達優先' : '其他可到校路線 · 預計最快抵達優先'}</h3>}
+        <div className="journey-estimate" aria-label="預計抵達目的地">
+          <strong>{estimate.arrival !== undefined ? '預計抵達約 ' + estimateClock(estimate.arrival) : '預計抵達：未能估算'}</strong>
+          <span>{estimate.arrival !== undefined ? '全程約 ' + Math.ceil((estimate.arrival - now) / 60000) + ' 分鐘' : estimate.reason}</span>
+          {estimate.arrival !== undefined && <details><summary>估算詳情</summary><p>步行約 {Math.ceil(estimate.walking)} 分鐘 · 候車及轉車緩衝約 {Math.ceil(estimate.waiting)} 分鐘 · 車程約 {Math.ceil(estimate.riding)} 分鐘</p>{estimate.legs.map((leg, i) => <p key={i}>第{i + 1}程：約 {estimateClock(leg.boarding)} 上車 → {estimateClock(leg.alighting)} 落車</p>)}</details>}
+        </div>
         <article className="arrival-choice"><button className="route-card" onClick={() => onSelect(row)}>
           <span className={"route-number " + row.route.company.toLowerCase()}>{row.route.route}</span>
           <span className="route-body"><strong>{row.transfer ? "第一程 · " : ""}往 {row.route.to}</strong><small className="route-company">{companyName(row.route.company)} · {routeDescription(row.route)}</small><span className="route-origin">上車：{row.stop.name}{Number.isFinite(row.meters) ? ' · 步行約 ' + Math.round(row.meters) + ' 米（直線）' : ''}</span><span className="route-origin">落車：{row.alight.name}{!row.transfer && ' · 步行至目的地約 ' + Math.round(row.endMeters) + ' 米（直線）'}</span>{row.route.company !== 'GMB' && row.route.service !== '1' && <small className="route-company">特別班次 {row.route.service}</small>}<small className={stale || row.error ? 'data-warning' : 'route-company'}>{row.updated ? '上次成功更新 ' + new Date(row.updated).toLocaleTimeString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour12: false }) + (stale ? ' · 舊資料，請更新後確認' : '') : row.error ? '到站資料未能取得' : '正在查詢到站時間…'}</small></span>
@@ -118,7 +130,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
       </div>;
     })}
     {!journeys.length && <p className="empty-message">{'指定範圍內未找到直達或最多轉兩次車的方案，請改選起點或目的地。'}</p>}
-    <p className="list-note">{school ? '有起點時只配對 1 公里內上車的方案；無定位時僅列所有直達路線。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。最快到站不代表最快抵達目的地。</p>
+    <p className="list-note"><a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_23-routes-fares-geojson" target="_blank" rel="noreferrer">參考車程來源：運輸署</a>。{school ? '有起點時只配對 1 公里內上車的方案；無定位時僅列所有直達路線。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。抵達時間為估算，按運輸署全程參考車程分攤所搭路段；步行按每小時 4.5 公里及直線距離乘 1.3，每次轉車預留 2 分鐘。未計即時塞車及真實行人路線，不能保證銜接；缺資料的方案排後。候選搜尋不保證涵蓋所有路線。</p>
   </div>;
 }
 
@@ -168,8 +180,8 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
         stopWorker.current = () => { finish(); reject(new Error('搜尋已取消')); };
         task.onmessage = event => { finish(); event.data.error ? reject(new Error(event.data.error)) : resolve(event.data.journeys); };
         task.onerror = () => { finish(); reject(new Error('未能配對行程，請重試。')); };
-        task.postMessage({ routes, stops: graph.stops, rows: graph.rows, origin: start, destination, alightingIds: destinationIds });
-      }) : directJourneys(routes, graph.stops, graph.rows, null, destination, true, destinationIds);
+        task.postMessage({ routes, stops: graph.stops, rows: graph.rows, origin: start, destination, alightingIds: destinationIds, times: graph.times });
+      }) : directJourneys(routes, graph.stops, graph.rows, null, destination, true, destinationIds).map(journey => withJourneyTimes(journey, graph.times));
       if (mounted.current && id === requestId.current) {
         setJourneys(result); setSnapshot(graph.snapshotAt); setSearched(true);
       }
@@ -190,12 +202,12 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
       {!fromSchool && !useGps && <PlaceInput label="起點" value={origin} onChange={value => { setOrigin(value); clearResults(); }} />}
       {school ? <p className="school-destination">目的地：聖公會李炳中學</p> : <PlaceInput label="目的地" value={destination} onChange={value => { setDestination(value); clearResults(); }} />}
       <button className="primary-button" disabled={busy || loadingRoutes} onClick={() => { if (school) setRevision(value => value + 1); else void find(true); }}><Search size={16} />{busy ? '正在搜尋…' : '搜尋路線及轉車方案'}</button>
-      <p className="list-note">配對九巴／龍運及綠色小巴；沒有直達路線時顯示最多轉兩次車的方案，最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按最快到上車站排序。</p>
+      <p className="list-note">配對九巴／龍運及綠色小巴；比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p>
     </div>
     {error && <p className="data-warning" role="alert">{error}<button className="text-button" disabled={busy || loadingRoutes} onClick={() => void find(true)}>重試</button></p>}
     {loadingRoutes && <p className="loading-message">正在載入路線資料…</p>}
     {busy && !searched && <p className="loading-message">正在配對上落車站…</p>}
-    {searched && journeys.some(journey => journey.transfer) && <p className="data-warning">未找到直達路線，以下需轉車（最多兩次）。按第一程最快到站排序；轉車距離為直線估算，請確認行人通道。後續各程為目前預報，未計之前車程，不能保證銜接。</p>}
+    {searched && journeys.some(journey => journey.transfer) && <p className="data-warning">以下包括轉車候選方案（最多兩次）。按預計抵達目的地排序；轉車距離為直線估算，請確認行人通道。後續各程仍顯示車站目前預報；估算只選步行及前段車程後可接駁的預報，不能保證銜接。</p>}
     {searched && <JourneyResults journeys={journeys} school={school} refreshing={busy} onRefresh={refresh} favourites={favourites} onToggleFavourite={onToggleFavourite} onSelect={onSelect} />}
     {snapshot && searched && <p className="list-note">路線及車站資料日期：{new Date(snapshot).toLocaleDateString('zh-HK', { timeZone: 'Asia/Hong_Kong' })} · 到站預報另行即時查詢</p>}
   </section>;
