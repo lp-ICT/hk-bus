@@ -2,7 +2,7 @@ import { readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 const base = process.env.BASE_PATH || '/';
 const assets = (await readdir('dist/assets')).map(name => `${base}assets/${name}`);
-const files = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png', ...assets].map(file => file.startsWith(base) ? file : `${base}${file.slice(1)}`);
+const files = ['/', '/share-qr.png', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png', ...assets].map(file => file.startsWith(base) ? file : `${base}${file.slice(1)}`);
 const version = createHash('sha256').update(JSON.stringify(files)).digest('hex').slice(0, 12);
 await Bun.write('dist/sw.js', `const CACHE = 'bus-shell-${version}';
 const FILES = ${JSON.stringify(files)};

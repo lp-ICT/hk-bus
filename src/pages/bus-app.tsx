@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownUp, ArrowLeft, ArrowRight, BusFront, ChevronRight, Clock3, Download, MapPin, RefreshCw, Search, Star, WifiOff, X } from 'lucide-react';
+import { ArrowDownUp, ArrowLeft, ArrowRight, BusFront, ChevronRight, Clock3, Download, MapPin, QrCode, RefreshCw, Search, Star, WifiOff, X } from 'lucide-react';
 import { allKmbStops, distanceLabel, noArrivalMessage, arrivalLabel, arrivalsFor, companyName, distance, favouriteKey, routeKey, routesFor, stopsFor, type Arrival, type Company, type Favourite, type Route, type Stop } from '../lib/bus';
 
 import StopSearch from './stop-search';
 import NearbyRoutes from './nearby-routes';
 import PullRefresh from './pull-refresh';
 import SchoolRoutes from './school-routes';
+import ShareQr from './share-qr';
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 function readFavourites(): Favourite[] {
@@ -76,6 +77,7 @@ export default function BusApp() {
   const [nearError, setNearError] = useState('');
   const [online, setOnline] = useState(navigator.onLine);
   const [install, setInstall] = useState<InstallEvent | null>(null);
+  const [showQr, setShowQr] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const stopRequest = useRef(0);
   const located = useRef(false);
@@ -171,8 +173,8 @@ export default function BusApp() {
     </article>;
   }
   return <div className="bus-app">
-    <PullRefresh enabled={tab === 'nearby' && !route && !showInstall} busy={nearBusy || loading} onRefresh={refreshNearby} />
-    <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><span className="brand-icon"><BusFront size={25} strokeWidth={2.2} /></span><span>就到站<span className="brand-en">HK BUS</span></span></a><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button></header>
+    <PullRefresh enabled={tab === 'nearby' && !route && !showInstall && !showQr} busy={nearBusy || loading} onRefresh={refreshNearby} />
+    <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><span className="brand-icon"><BusFront size={25} strokeWidth={2.2} /></span><span>就到站<span className="brand-en">HK BUS</span></span></a><div className="header-actions"><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button><button className="install-button qr-button" aria-label="顯示網站 QR code" title="顯示網站 QR code" onClick={() => setShowQr(true)}><QrCode size={18} /><span>QR code</span></button></div></header>
     {!online && <div className="offline-banner" role="status"><WifiOff size={16} />目前離線 · 到站預報需要網絡連線</div>}
     <main>
       <nav className="tab-bar" aria-label="主要功能">{([{ id: 'search', label: '搜尋路線', icon: Search }, { id: 'favourites', label: '我的收藏', icon: Star }, { id: 'nearby', label: '附近路線', icon: MapPin }, { id: 'school', label: '李炳中學', icon: BusFront }] as const).map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => changeTab(item.id)}><item.icon size={19} />{item.label}{item.id === 'favourites' && favourites.length > 0 && <span className="count">{favourites.length}</span>}</button>)}</nav>
@@ -189,6 +191,7 @@ export default function BusApp() {
       <footer><span className="footer-brand"><BusFront size={17} /> 就到站</span><p>資料來自 <a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_21-etakmb" target="_blank" rel="noreferrer">九巴／龍運</a> 及 <a href="https://data.gov.hk/tc-data/dataset/ctb-eta-transport-realtime-eta" target="_blank" rel="noreferrer">城巴</a> 開放數據。<br />非官方應用程式 · 到站時間以巴士公司資料為準</p><span className="footer-note"><Clock3 size={13} /> 香港時間 UTC+8</span></footer>
     </main>
     {notice && <div className="toast" role="status">{notice}</div>}
+    {showQr && <ShareQr onClose={() => setShowQr(false)} />}
     {showInstall && <div className="modal-backdrop" onClick={() => setShowInstall(false)}><section className="install-modal" role="dialog" aria-modal="true" aria-labelledby="install-title" onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setShowInstall(false); }}><button autoFocus aria-label="關閉安裝說明" className="icon-button modal-close" onClick={() => setShowInstall(false)}><X size={21} /></button><span className="brand-icon"><BusFront size={29} /></span><h2 id="install-title">巴士時間，一按就睇。</h2><p>加入手機主畫面，下次不用再找網址。</p>{install && <button className="primary-button" onClick={async () => { await install.prompt(); await install.userChoice; setInstall(null); }}>安裝就到站 <Download size={17} /></button>}<div className="install-step"><strong>iPhone · Safari</strong><p>用 Safari 開啟此頁 → 按「分享」 →「加入主畫面」。</p></div><div className="install-step"><strong>Android · Chrome</strong><p>用 Chrome 開啟此頁 → 右上角選單 →「安裝應用程式」或「加至主畫面」。</p></div><small>即時到站仍需網絡連線。收藏不會跨裝置同步。</small></section></div>}
   </div>;
 }
