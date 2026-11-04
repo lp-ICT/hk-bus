@@ -1,9 +1,39 @@
 import { afterEach, expect, test } from 'bun:test';
-import { schoolSideStops, noArrivalMessage, distanceLabel, arrivalLabel, arrivalsFor, distance, nearbyArrivals, nearestRoutes, sortNearby, searchStops, routesAtStop, type Route } from './bus';
+import { connectionIssues } from './connection';
+import { schoolSideStops, noArrivalMessage, distanceLabel, arrivalLabel, arrivalsFor, distance, nearbyArrivals, nearestRoutes, sortNearby, searchStops, routesAtStop, routesFor, allKmbStops, stopsFor, type Route } from './bus';
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 const route: Route = { company: 'KMB', route: '1', bound: 'O', service: '1', from: '竹園邨', to: '尖沙咀碼頭' };
 const stop = { id: 'STOP', seq: 3, name: '測試站', lat: 22.3, lng: 114.1 };
+test('blocked official metadata loads the dated same-origin backup', async () => {
+  const calls: string[] = [];
+  globalThis.fetch = (async (url) => {
+    calls.push(String(url));
+    if (String(url).startsWith('https://')) throw new TypeError('Failed to fetch');
+    return new Response(JSON.stringify({ snapshot_at: '2026-11-04T04:00:00Z', data: [{ route: '1', bound: 'O', service_type: 1, orig_tc: '竹園邨', dest_tc: '尖沙咀碼頭' }] }));
+  }) as typeof fetch;
+  expect(await routesFor('KMB')).toEqual([route]);
+  expect(calls).toHaveLength(3);
+  expect(calls[2]).toBe('/bus-data/kmb-routes.json');
+  expect(connectionIssues().find(issue => issue.source.endsWith('/route/'))?.backupAt).toBe('2026-11-04T04:00:00Z');
+});
+test('route stop backup filters direction and service and retains official sequence', async () => {
+  globalThis.fetch = (async (url) => {
+    if (String(url).startsWith('https://')) throw new TypeError('Failed to fetch');
+    const data = String(url).includes('kmb-stops') ? [{ stop: 'STOP', name_tc: '測試站', lat: '22.3', long: '114.1' }] : [
+      { route: '1', bound: 'O', service_type: 1, stop: 'STOP', seq: 3 },
+      { route: '1', bound: 'I', service_type: 1, stop: 'STOP', seq: 7 },
+      { route: '1', bound: 'O', service_type: 2, stop: 'STOP', seq: 9 },
+    ];
+    return new Response(JSON.stringify({ snapshot_at: '2026-11-04T04:00:00Z', data }));
+  }) as typeof fetch;
+  expect(await stopsFor(route)).toEqual([stop]);
+});
+test('invalid backup metadata remains an error rather than an empty route list', async () => {
+  globalThis.fetch = (async (url) => String(url).startsWith('https://') ? new Response('', { status: 403 }) : new Response(JSON.stringify({ data: [] }))) as typeof fetch;
+  await expect(allKmbStops()).rejects.toThrow('HTTP 403');
+  expect(connectionIssues().find(issue => issue.source.endsWith('/stop'))?.reason).toContain('備援亦失敗');
+});
 test('transient network and HTTP failures retry once with a fresh URL', async () => {
   for (const failure of ['network', 'http']) {
     const calls: string[] = [];

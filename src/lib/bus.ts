@@ -1,10 +1,18 @@
+import { connectionReason, reportConnection } from './connection';
+
 export type Company = 'KMB' | 'CTB';
 export type Route = { company: Company; route: string; bound: string; service: string; from: string; to: string };
 export type Stop = { id: string; name: string; lat: number; lng: number; seq: number };
 export type Favourite = { route: Route; stop: Stop };
 export type Arrival = { eta: string | null; remark: string; seq: number };
 const bases = { KMB: 'https://data.etabus.gov.hk/v1/transport/kmb', CTB: 'https://rt.data.gov.hk/v2/transport/citybus' };
-const memory = new Map<string, { at: number; value: unknown }>();
+const memory = new Map<string, { at: number; value: unknown; backupAt?: string }>();
+const metadataFiles: Record<string, string> = {
+  [`${bases.KMB}/route/`]: 'kmb-routes',
+  [`${bases.KMB}/stop`]: 'kmb-stops',
+  [`${bases.KMB}/route-stop`]: 'kmb-route-stops',
+  [`${bases.CTB}/route/CTB`]: 'ctb-routes',
+};
 const requests = new Map<string, Promise<unknown>>();
 
 async function fetchBusData(url: string, cache: boolean) {
@@ -14,12 +22,35 @@ async function fetchBusData(url: string, cache: boolean) {
     try {
       const target = attempt ? `${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}` : url;
       const response = await fetch(target, { signal: controller.signal, cache: attempt || !cache ? 'no-store' : 'default' });
-      if (!response.ok) throw new Error('巴士公司暫時未能提供資料，請稍後重試。');
+      if (!response.ok) throw new Error(`官方接口回應 HTTP ${response.status}`);
       const json = await response.json();
       if (!json || typeof json !== 'object' || !('data' in json)) throw new Error('收到的巴士資料不完整。');
+      reportConnection(url, undefined);
       return json;
     } catch (error) {
-      if (attempt) throw error;
+      if (attempt) {
+        const reason = connectionReason(error);
+        reportConnection(url, reason);
+        const routeStop = url.startsWith(`${bases.KMB}/route-stop/`) ? url.slice(`${bases.KMB}/route-stop/`.length).match(/^([^/]+)\/(outbound|inbound)\/([^/]+)$/) : null;
+        const file = cache && (metadataFiles[url] || (routeStop ? 'kmb-route-stops' : undefined));
+        if (file) {
+          const backupController = new AbortController();
+          const backupTimer = setTimeout(() => backupController.abort(), 10000);
+          try {
+            const response = await fetch(`${import.meta.env?.BASE_URL || '/'}bus-data/${file}.json`, { signal: backupController.signal });
+            if (!response.ok) throw new Error(`備援接口回應 HTTP ${response.status}`);
+            const backup = await response.json();
+            if (!Array.isArray(backup.data) || !backup.data.length || !Number.isFinite(Date.parse(backup.snapshot_at))) throw new Error('備援資料不完整');
+            if (routeStop) backup.data = backup.data.filter((row: Raw) => String(row.route) === routeStop[1] && String(row.bound) === (routeStop[2] === 'outbound' ? 'O' : 'I') && String(row.service_type) === routeStop[3]);
+            if (!backup.data.length) throw new Error('備援未有此路線資料');
+            reportConnection(url, reason, backup.snapshot_at);
+            return backup;
+          } catch (backupError) {
+            reportConnection(url, `${reason}；備援亦失敗：${connectionReason(backupError)}`);
+          } finally { clearTimeout(backupTimer); }
+        }
+        throw error;
+      }
     } finally { clearTimeout(timer); }
   }
 }
@@ -28,18 +59,25 @@ async function data<T>(url: string, cache = true): Promise<T> {
   const key = `bus-v1:${url}`;
   if (cache) {
     const hit = typeof window !== 'undefined' ? memory.get(url) : undefined;
-    if (hit && Date.now() - hit.at < 86400000) return hit.value as T;
+    if (hit && Date.now() - hit.at < 86400000) {
+      if (hit.backupAt) reportConnection(url, '使用已暫存的備援路線／車站資料', hit.backupAt);
+      return hit.value as T;
+    }
     try {
       const saved = JSON.parse(localStorage.getItem(key) || 'null');
-      if (saved && Date.now() - saved.at < 86400000) return saved.value;
+      if (saved && Date.now() - saved.at < 86400000) {
+        if (saved.backupAt) reportConnection(url, '使用已暫存的備援路線／車站資料', saved.backupAt);
+        return saved.value;
+      }
     } catch {}
     if (requests.has(url)) return requests.get(url) as Promise<T>;
   }
   const request = (async () => {
     const json = await fetchBusData(url, cache);
     if (cache) {
-      if (typeof window !== 'undefined') memory.set(url, { at: Date.now(), value: json.data });
-      try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), value: json.data })); } catch {}
+      const saved = { at: Date.now(), value: json.data, backupAt: json.snapshot_at as string | undefined };
+      if (typeof window !== 'undefined') memory.set(url, saved);
+      try { localStorage.setItem(key, JSON.stringify(saved)); } catch {}
     }
     return json.data as T;
   })();
