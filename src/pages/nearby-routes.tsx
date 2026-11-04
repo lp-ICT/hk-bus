@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Star } from 'lucide-react';
-import { distance, distanceLabel, favouriteKey, noArrivalMessage, arrivalLabel, nearbyArrivals, nearestRoutes, sortNearby, type Favourite, type NearbyArrival, type Route, type Stop } from '../lib/bus';
+import { companyName, distance, distanceLabel, favouriteKey, noArrivalMessage, arrivalLabel, nearbyArrivals, nearestRoutes, sortNearby, type Favourite, type NearbyArrival, type Route, type Stop } from '../lib/bus';
 
 type Result = NearbyArrival & { updated: number };
-const rowKey = (row: NearbyArrival) => `${row.route.company}-${row.route.route}-${row.route.bound}`;
+const rowKey = (row: NearbyArrival) => `${row.route.company}-${row.route.route}-${row.route.bound}${row.route.company === 'GMB' ? '-' + row.route.service : ''}`;
 export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect, onRefresh, locating, startupDeadline, stationName, favourites, onToggleFavourite, position }: { favourites: Favourite[]; onToggleFavourite: (value: Favourite) => void; position: { lat: number; lng: number } | null; stationName?: string; onRefresh: () => Promise<void>; locating: boolean; startupDeadline: number; stops: (Stop & { meters: number })[]; routes: Route[]; loadingRoutes: boolean; onSelect: (value: Favourite) => void }) {
   const [rows, setRows] = useState<Result[]>([]);
   const [busy, setBusy] = useState(true);
@@ -71,8 +71,8 @@ export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect, o
     {error && <p className="error-text" role="alert">{error}</p>}
     {!rows.length && busy && <p className="loading-message">正在查詢{stationName || '附近'}路線及即時到站時間…</p>}
     {display.map(row => <article className="arrival-choice" key={rowKey(row)}><button className="route-card" onClick={() => onSelect(row)}>
-      <span className="route-number kmb">{row.route.route}</span>
-      <span className="route-body"><strong>往 {row.route.to}</strong><span className="route-origin">{row.stop.name}{position ? ` · ${distanceLabel(distance(position.lat, position.lng, row.stop))}` : !stationName ? ` · ${distanceLabel(row.meters)}` : ''}</span><small className={row.error || now - row.updated > 90000 ? 'data-warning' : 'route-company'}>{row.updated ? `上次成功更新 ${new Date(row.updated).toLocaleTimeString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour12: false })}${row.error ? ' · 更新失敗，舊資料' : now - row.updated > 90000 ? ' · 資料已過時' : ''}` : '到站資料未能取得'}</small></span>
+      <span className={"route-number " + row.route.company.toLowerCase()}>{row.route.route}</span>
+      <span className="route-body"><strong>往 {row.route.to}</strong><small className="route-company">{companyName(row.route.company)}</small><span className="route-origin">{row.stop.name}{position ? ` · ${distanceLabel(distance(position.lat, position.lng, row.stop))}` : !stationName ? ` · ${distanceLabel(row.meters)}` : ''}</span><small className={row.error || now - row.updated > 90000 ? 'data-warning' : 'route-company'}>{row.updated ? `上次成功更新 ${new Date(row.updated).toLocaleTimeString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour12: false })}${row.error ? ' · 更新失敗，舊資料' : now - row.updated > 90000 ? ' · 資料已過時' : ''}` : '到站資料未能取得'}</small></span>
       <span className="nearby-times">{row.arrivals.some(a => a.eta) ? row.arrivals.filter(a => a.eta).map((a, i) => <span key={i}><small>{['下一班', '第二班', '第三班'][i]}</small><strong>{arrivalLabel(a.eta, now)}</strong></span>) : <strong>{row.error ? '查詢失敗' : noArrivalMessage(row.arrivals)}</strong>}</span>
     </button><button className={`icon-button quick-save ${favourites.some(f => favouriteKey(f) === favouriteKey(row)) ? 'saved' : ''}`} aria-label={`${favourites.some(f => favouriteKey(f) === favouriteKey(row)) ? '取消收藏' : '收藏'}${row.route.route} 往${row.route.to} ${row.stop.name}`} onClick={() => onToggleFavourite(row)}><Star size={18} fill={favourites.some(f => favouriteKey(f) === favouriteKey(row)) ? 'currentColor' : 'none'} /></button></article>)}
     {!busy && !rows.length && !error && <p className="empty-message">{stationName || '附近車站'}暫時沒有路線資料。</p>}

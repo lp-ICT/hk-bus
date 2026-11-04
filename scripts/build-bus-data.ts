@@ -1,5 +1,10 @@
 export {};
 
+const gmbBuild = Bun.spawnSync(['python', 'scripts/build-gmb-data.py'], { stdout: 'inherit', stderr: 'inherit' });
+if (gmbBuild.exitCode !== 0) throw new Error('Cannot build official minibus metadata');
+await Bun.write('dist/bus-data/gmb-network.json', Bun.file('public/bus-data/gmb-network.json'));
+
+
 const sources = {
   'kmb-routes': 'https://data.etabus.gov.hk/v1/transport/kmb/route/',
   'kmb-stops': 'https://data.etabus.gov.hk/v1/transport/kmb/stop',

@@ -1,9 +1,9 @@
 import proj4 from 'proj4';
-import { allKmbStops, distance, routeKey, searchStops, type Favourite, type Route, type Stop } from './bus';
+import { allKmbStops, gmbNetwork, distance, routeKey, searchStops, type Favourite, type Route, type Stop } from './bus';
 
 export type Place = { name: string; lat: number; lng: number; detail?: string };
-export type Journey = Favourite & { alight: Stop; meters: number; endMeters: number; nearby: boolean };
-export type RouteStop = { route: string; bound: string; service_type: string | number; stop: string; seq: string | number };
+export type Journey = Favourite & { alight: Stop; meters: number; endMeters: number; nearby: boolean; transfer?: { leg: Journey; meters: number } };
+export type RouteStop = { route: string; bound: string; service_type: string | number; stop: string; seq: string | number; company?: 'KMB' | 'GMB'; pickup?: boolean; dropoff?: boolean };
 const hk80 = '+proj=tmerc +lat_0=22.3121333333333 +lon_0=114.178555555556 +k=1 +x_0=836694.05 +y_0=819069.8 +ellps=intl +towgs84=-162.619,-276.959,-161.764,-0.067753,2.243648,1.158828,-1.094246 +units=m +no_defs';
 export function hkPlace(name: string, x: number, y: number, detail?: string): Place {
   const [lng, lat] = proj4(hk80, 'EPSG:4326', [x, y]);
@@ -50,7 +50,8 @@ export function journeyGraph() {
         if (responses.some(response => !response.ok)) throw new Error('車站及路線資料未能載入');
         const [stops, routeStops] = await Promise.all(responses.map(response => response.json()));
         if (!Array.isArray(stops.data) || !stops.data.length || !Array.isArray(routeStops.data) || !routeStops.data.length || !Number.isFinite(Date.parse(routeStops.snapshot_at))) throw new Error('車站及路線資料不完整');
-        return { stops: stops.data.map((row: Record<string, string>) => ({ id: row.stop, name: row.name_tc, lat: Number(row.lat), lng: Number(row.long), seq: 0 })), rows: routeStops.data as RouteStop[], snapshotAt: routeStops.snapshot_at as string };
+        const gmb = await gmbNetwork();
+        return { stops: [...gmb.stops, ...stops.data.map((row: Record<string, string>) => ({ id: row.stop, name: row.name_tc, lat: Number(row.lat), lng: Number(row.long), seq: 0 }))], rows: [...routeStops.data as RouteStop[], ...gmb.rows], snapshotAt: routeStops.snapshot_at as string };
       } finally { clearTimeout(timer); }
     })().catch(error => { graphRequest = undefined; throw error; });
   }
@@ -61,10 +62,10 @@ export function directJourneys(routes: Route[], stops: Stop[], rows: RouteStop[]
   const stopMap = new Map(stops.map(stop => [stop.id, stop]));
   const accessible = (stop: Stop, place: Place | null) => !/隧道轉車站|隧道收費廣場/.test(stop.name) || !!place?.name.includes('隧道');
   const destinations = new Map(stops.filter(stop => alightingIds ? alightingIds.includes(stop.id) : accessible(stop, destination) && distance(destination.lat, destination.lng, stop) <= 400).map(stop => [stop.id, distance(destination.lat, destination.lng, stop)]));
-  const routeMap = new Map(routes.filter(route => route.company === 'KMB').map(route => [routeKey(route), route]));
+  const routeMap = new Map(routes.filter(route => route.company !== 'CTB').map(route => [routeKey(route), route]));
   const grouped = new Map<string, RouteStop[]>();
   for (const row of rows) {
-    const key = 'KMB-' + row.route + '-' + row.bound + '-' + row.service_type;
+    const key = (row.company || 'KMB') + '-' + row.route + '-' + row.bound + '-' + row.service_type;
     if (!routeMap.has(key)) continue;
     if (!grouped.has(key)) grouped.set(key, []);
     grouped.get(key)!.push(row);
@@ -74,12 +75,12 @@ export function directJourneys(routes: Route[], stops: Stop[], rows: RouteStop[]
     const route = routeMap.get(key)!;
     const ordered = routeStops.map(row => {
       const stop = stopMap.get(row.stop);
-      return stop ? { ...stop, seq: Number(row.seq) } : null;
+      return stop ? { ...stop, seq: Number(row.seq), pickup: row.pickup, dropoff: row.dropoff } as Stop : null;
     }).filter((stop): stop is Stop => !!stop).sort((a, b) => a.seq - b.seq);
     let best: Journey | undefined;
-    for (const alight of ordered.filter(stop => destinations.has(stop.id))) {
+    for (const alight of ordered.filter(stop => stop.dropoff !== false && destinations.has(stop.id))) {
       for (const stop of ordered) {
-        if (stop.seq >= alight.seq || stop.id === alight.id || !accessible(stop, origin)) continue;
+        if (stop.pickup === false || stop.seq >= alight.seq || stop.id === alight.id || !accessible(stop, origin)) continue;
         const meters = origin ? distance(origin.lat, origin.lng, stop) : Infinity;
         if (!allToDestination && (!origin || meters > 1000)) continue;
         const candidate: Journey = { route, stop, alight, meters, endMeters: destinations.get(alight.id)!, nearby: !!origin && meters <= 1000 };
@@ -90,7 +91,7 @@ export function directJourneys(routes: Route[], stops: Stop[], rows: RouteStop[]
   }
   const nearest = new Map<string, Journey>();
   for (const journey of results) {
-    const key = journey.route.company + '-' + journey.route.route + '-' + journey.route.bound;
+    const key = journey.route.company + '-' + journey.route.route + '-' + journey.route.bound + (journey.route.company === 'GMB' ? '-' + journey.route.service : '');
     const previous = nearest.get(key);
     if (!previous || journey.meters < previous.meters || journey.meters === previous.meters && Number(journey.route.service) < Number(previous.route.service)) nearest.set(key, journey);
   }
@@ -102,4 +103,57 @@ export function currentPlace(): Promise<Place> {
     if (!navigator.geolocation) { reject(new Error('瀏覽器不支援定位，請輸入起點。')); return; }
     navigator.geolocation.getCurrentPosition(position => resolve({ name: '目前位置', lat: position.coords.latitude, lng: position.coords.longitude }), () => reject(new Error('未能取得位置，請允許定位或自行輸入起點。')), { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
   });
+}
+
+export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop[], origin: Place, destination: Place, alightingIds?: string[]): Journey[] {
+  const stopMap = new Map(stops.map(stop => [stop.id, stop]));
+  const routeMap = new Map(routes.filter(route => route.company !== 'CTB').map(route => [routeKey(route), route]));
+  const grouped = new Map<string, Stop[]>();
+  for (const row of rows) {
+    const key = `${row.company || 'KMB'}-${row.route}-${row.bound}-${row.service_type}`;
+    const stop = stopMap.get(row.stop);
+    if (!stop || !routeMap.has(key)) continue;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push({ ...stop, seq: Number(row.seq), pickup: row.pickup, dropoff: row.dropoff });
+  }
+  const restricted = (stop: Stop) => /隧道轉車站|隧道收費廣場/.test(stop.name);
+  const destinations = new Set(stops.filter(stop => alightingIds ? alightingIds.includes(stop.id) : !restricted(stop) && distance(destination.lat, destination.lng, stop) <= 400).map(stop => stop.id));
+  const cell = (lat: number, lng: number) => `${Math.floor(lat / 0.003)},${Math.floor(lng / 0.003)}`;
+  const boardings = new Map<string, { route: Route; stop: Stop; alight: Stop }[]>();
+  for (const [key, ordered] of grouped) {
+    ordered.sort((a, b) => a.seq - b.seq);
+    const alight = [...ordered].reverse().find(stop => stop.dropoff !== false && destinations.has(stop.id));
+    if (!alight) continue;
+    for (const stop of ordered) {
+      if (stop.pickup === false || stop.seq >= alight.seq || stop.id === alight.id) continue;
+      const bucket = cell(stop.lat, stop.lng);
+      if (!boardings.has(bucket)) boardings.set(bucket, []);
+      boardings.get(bucket)!.push({ route: routeMap.get(key)!, stop, alight });
+    }
+  }
+  const best = new Map<string, { journey: Journey; score: number }>();
+  for (const [key, ordered] of grouped) {
+    const route = routeMap.get(key)!;
+    const starts = ordered.filter(stop => stop.pickup !== false && !restricted(stop) && distance(origin.lat, origin.lng, stop) <= 1000);
+    for (const exit of ordered) {
+      if (exit.dropoff === false) continue;
+      const start = starts.filter(stop => stop.seq < exit.seq && stop.id !== exit.id).sort((a, b) => distance(origin.lat, origin.lng, a) - distance(origin.lat, origin.lng, b))[0];
+      if (!start) continue;
+      const x = Math.floor(exit.lat / 0.003), y = Math.floor(exit.lng / 0.003);
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+        for (const second of boardings.get(`${x + dx},${y + dy}`) || []) {
+          if (route.company === second.route.company && route.route === second.route.route && (route.company !== 'GMB' || route.region === second.route.region)) continue;
+          const walk = distance(exit.lat, exit.lng, second.stop);
+          if (walk > 200 || (restricted(exit) || restricted(second.stop)) && exit.id !== second.stop.id) continue;
+          const meters = distance(origin.lat, origin.lng, start), endMeters = distance(destination.lat, destination.lng, second.alight);
+          const leg: Journey = { route: second.route, stop: second.stop, alight: second.alight, meters: walk, endMeters, nearby: true };
+          const journey: Journey = { route, stop: start, alight: exit, meters, endMeters, nearby: true, transfer: { leg, meters: walk } };
+          const score = meters + endMeters + walk * 3 + ((exit.seq - start.seq) + (second.alight.seq - second.stop.seq)) * 80;
+          const pair = `${route.company}-${route.route}-${route.bound}-${route.company === 'GMB' ? route.service : ''}/${second.route.company}-${second.route.route}-${second.route.bound}-${second.route.company === 'GMB' ? second.route.service : ''}`;
+          if (!best.has(pair) || score < best.get(pair)!.score) best.set(pair, { journey, score });
+        }
+      }
+    }
+  }
+  return [...best.values()].sort((a, b) => a.score - b.score).slice(0, 12).map(value => value.journey);
 }

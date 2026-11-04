@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { directJourneys, hkPlace, schoolPlace, type RouteStop } from './journey';
+import { directJourneys, transferJourneys, hkPlace, schoolPlace, type RouteStop } from './journey';
 import type { Route, Stop } from './bus';
 import { sortJourneys } from '../pages/journey-planner';
 
@@ -84,4 +84,31 @@ test('school alighting is restricted to confirmed stops rather than nearby tunne
   const result = directJourneys([route, { ...route, route: '88' }], [...stops, tunnel], [...rows, ...tunnelRows], start, end, true, ['C']);
   expect(result.map(journey => journey.route.route)).toEqual(['40X']);
   expect(directJourneys([{ ...route, route: '88' }], [...stops, tunnel], tunnelRows, start, end)).toEqual([]);
+});
+
+test('transfers preserve direction and separate bus and minibus routes with identical numbers', () => {
+  const second: Route = { ...route, company: 'GMB', bound: '1', service: '200', region: 'NT' };
+  const interchange = { ...stops[1], id: 'GMB:T', lat: stops[1].lat + 0.0001 };
+  const finish = { ...stops[2], id: 'GMB:END' };
+  const network = [...stops, interchange, finish];
+  const links: RouteStop[] = [rows[0], rows[1],
+    { company: 'GMB', route: second.route, bound: '1', service_type: '200', stop: interchange.id, seq: 1 },
+    { company: 'GMB', route: second.route, bound: '1', service_type: '200', stop: finish.id, seq: 2 }];
+  expect(directJourneys([route, second], network, links, start, end)).toHaveLength(0);
+  const result = transferJourneys([route, second], network, links, start, end);
+  expect(result).toHaveLength(1);
+  expect(result[0].route.company).toBe('KMB');
+  expect(result[0].alight.id).toBe('B');
+  expect(result[0].transfer?.leg.route.company).toBe('GMB');
+  expect(result[0].transfer?.leg.stop.id).toBe('GMB:T');
+  expect(result[0].transfer?.leg.alight.id).toBe('GMB:END');
+  expect(transferJourneys([route, second], network, links.map(row => ({ ...row, dropoff: row.stop !== 'B' })), start, end)).toHaveLength(0);
+  expect(transferJourneys([route, second], network, links.map(row => ({ ...row, pickup: row.stop !== 'GMB:T' })), start, end)).toHaveLength(0);
+  expect(transferJourneys([route, second], network, links, end, start)).toHaveLength(0);
+  expect(transferJourneys([route, second], network.map(stop => stop.id === 'GMB:T' ? { ...stop, lat: stop.lat + 0.004 } : stop), links, start, end)).toHaveLength(0);
+});
+
+test('journey matching never boards at drop-off-only stops or alights at pick-up-only stops', () => {
+  expect(directJourneys([route], stops, rows.map(row => ({ ...row, pickup: row.stop !== 'A' })), start, end)).toHaveLength(0);
+  expect(directJourneys([route], stops, rows.map(row => ({ ...row, dropoff: row.stop !== 'C' })), start, end)).toHaveLength(0);
 });

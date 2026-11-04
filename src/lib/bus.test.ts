@@ -186,3 +186,17 @@ test('route grouping retains explicit no-prediction remarks and marks partial se
   const result = nearestRoutes([base, { ...base, route: { ...route, service: '2' }, error: true, arrivals: [] }]);
   expect(result[0].error).toBe(true);
 });
+
+test('minibus ETA uses route ID, direction and stop sequence and caps at three', async () => {
+  const now = Date.now();
+  let requested = '';
+  globalThis.fetch = (async url => {
+    requested = String(url);
+    return new Response(JSON.stringify({ data: { enabled: true, eta: [1, 2, 3, 4].map(seq => ({ eta_seq: seq, timestamp: new Date(now + seq * 60000).toISOString(), remarks_tc: null })) } }));
+  }) as typeof fetch;
+  const result = await arrivalsFor({ ...route, company: 'GMB', bound: '2', service: '2001234' }, stop);
+  expect(requested).toBe('https://data.etagmb.gov.hk/eta/route-stop/2001234/2/3');
+  expect(result.map(row => row.seq)).toEqual([1, 2, 3]);
+  globalThis.fetch = (async () => new Response(JSON.stringify({ data: { enabled: false, eta: [] } }))) as unknown as typeof fetch;
+  expect((await arrivalsFor({ ...route, company: 'GMB', bound: '2', service: '2001234' }, stop))[0].remark).toContain('暫未提供');
+});
