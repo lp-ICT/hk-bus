@@ -1,5 +1,5 @@
-const CACHE = 'bus-shell-9f78cff4c41e';
-const FILES = ["/hk-bus/","/hk-bus/share-qr.png","/hk-bus/manifest.webmanifest","/hk-bus/icons/icon-192.png","/hk-bus/icons/icon-512.png","/hk-bus/icons/maskable-512.png","/hk-bus/icons/apple-touch-icon.png","/hk-bus/assets/index-nEA7ijOm.css","/hk-bus/assets/index-KyEwc7Nh.js","/hk-bus/bus-data/kmb-routes.json","/hk-bus/bus-data/kmb-stops.json","/hk-bus/bus-data/kmb-route-stops.json","/hk-bus/bus-data/ctb-routes.json"];
+const CACHE = 'bus-shell-237e115739e5';
+const FILES = ["/hk-bus/","/hk-bus/share-qr.png","/hk-bus/manifest.webmanifest","/hk-bus/icons/icon-192.png","/hk-bus/icons/icon-512.png","/hk-bus/icons/maskable-512.png","/hk-bus/icons/apple-touch-icon.png","/hk-bus/assets/index-Ze-shRpN.css","/hk-bus/assets/index-cnpo2rlt.js","/hk-bus/bus-data/gmb-network.json","/hk-bus/bus-data/kmb-routes.json","/hk-bus/bus-data/kmb-stops.json","/hk-bus/bus-data/kmb-route-stops.json","/hk-bus/bus-data/ctb-routes.json"];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('bus-shell-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', event => {
