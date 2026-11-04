@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from 'bun:test';
 import { connectionIssues } from './connection';
-import { schoolSideStops, noArrivalMessage, distanceLabel, arrivalLabel, arrivalsFor, distance, nearbyArrivals, nearestRoutes, sortNearby, searchStops, routesAtStop, routesFor, allKmbStops, stopsFor, type Route } from './bus';
+import { nearbyStops, schoolSideStops, noArrivalMessage, distanceLabel, arrivalLabel, arrivalsFor, distance, nearbyArrivals, nearestRoutes, sortNearby, searchStops, routesAtStop, routesFor, allKmbStops, stopsFor, type Route } from './bus';
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 const route: Route = { company: 'KMB', route: '1', bound: 'O', service: '1', from: '竹園邨', to: '尖沙咀碼頭' };
@@ -218,4 +218,10 @@ test('312 school supplements retain directions and never request another stop ET
   const forecasts = await arrivalsFor({ company: 'GMB', route: '312', service: '2004263', bound: '2', from: '青衣站', to: '梨木樹' }, { ...network.stops[0], seq: 4.5, etaAvailable: false });
   expect(forecasts[0].eta).toBeNull();
   expect(forecasts[0].remark).toContain('未有官方即時預報');
+});
+
+test('nearby stops retain local buses and minibuses but exclude distant stops and Shing Mun interchange', () => {
+  const make = (id: string, name: string, lat: number) => ({ id, name, lat, lng: 114.135, seq: 0 });
+  const result = nearbyStops([make('BUS', '可風中學', 22.3801), make('GMB:312', '李炳中學門口', 22.3802), make('FAR', '遠站', 22.384), make('TUNNEL', '城門隧道轉車站', 22.3803)], 22.38, 114.135);
+  expect(result.map(stop => stop.id)).toEqual(['BUS', 'GMB:312']);
 });

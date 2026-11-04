@@ -276,3 +276,8 @@ export function routeDescription(route: Route) {
   if (route.company === 'GMB') return ({ HKI: '港島', KLN: '九龍', NT: '新界' }[route.region || ''] || '') + (route.description && route.description !== '正常班次' ? ' · ' + route.description : '');
   return route.service !== '1' ? '特別班次 ' + route.service : '';
 }
+
+export function nearbyStops(stops: Stop[], lat: number, lng: number): (Stop & { meters: number })[] {
+  const within = stops.filter(stop => !/城門隧道.*轉車站|SHING MUN TUNNELS.*INTERCHANGE/i.test(stop.name)).map(stop => ({ ...stop, meters: distance(lat, lng, stop) })).filter(stop => stop.meters <= 300).sort((a, b) => a.meters - b.meters);
+  return [...within.filter(stop => !stop.id.startsWith('GMB:')).slice(0, 20), ...within.filter(stop => stop.id.startsWith('GMB:')).slice(0, 20)];
+}

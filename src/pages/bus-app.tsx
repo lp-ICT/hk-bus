@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownUp, ArrowLeft, ArrowRight, BusFront, ChevronRight, Clock3, Download, MapPin, QrCode, RefreshCw, Search, Star, WifiOff, X } from 'lucide-react';
-import { allTransitStops, distanceLabel, noArrivalMessage, arrivalLabel, arrivalsFor, companyName, distance, favouriteKey, routeKey, routesFor, stopsFor, type Arrival, type Company, type Favourite, type Route, type Stop } from '../lib/bus';
+import { allTransitStops, nearbyStops, distanceLabel, noArrivalMessage, arrivalLabel, arrivalsFor, companyName, distance, favouriteKey, routeKey, routesFor, stopsFor, type Arrival, type Company, type Favourite, type Route, type Stop } from '../lib/bus';
 
 import StopSearch from './stop-search';
 import JourneyPlanner, { PlaceInput } from './journey-planner';
@@ -163,13 +163,12 @@ export default function BusApp() {
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('定位資料不完整');
       setPosition({ lat: latitude, lng: longitude });
       const stops = await allTransitStops();
-      const within = stops.map(stop => ({ ...stop, meters: distance(latitude, longitude, stop) })).filter(stop => stop.meters <= 1000).sort((a, b) => a.meters - b.meters);
-      const closest = [...within.filter(stop => !stop.id.startsWith('GMB:')).slice(0, 20), ...within.filter(stop => stop.id.startsWith('GMB:')).slice(0, 20)];
+      const closest = nearbyStops(stops, latitude, longitude);
       locationReady.current = closest.length > 0;
       setNearby(closest);
       if (!closest.length) {
         setChoosePlace(true);
-        setNearError('按瀏覽器回傳的位置，1 公里內未找到車站。電腦定位可能偏離實際位置，請選擇你所在的地點再查詢，並非代表路線資料全部失效。');
+        setNearError('按瀏覽器回傳的位置，300 米內未找到可步行前往的車站。電腦定位可能偏離實際位置，請選擇你所在的地點再查詢，並非代表路線資料全部失效。');
       }
     } catch (error) {
       locationReady.current = false;
