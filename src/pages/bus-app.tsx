@@ -163,7 +163,8 @@ export default function BusApp() {
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('定位資料不完整');
       setPosition({ lat: latitude, lng: longitude });
       const stops = await allTransitStops();
-      const closest = stops.map(stop => ({ ...stop, meters: distance(latitude, longitude, stop) })).filter(stop => stop.meters <= 1000).sort((a, b) => a.meters - b.meters).slice(0, 20);
+      const within = stops.map(stop => ({ ...stop, meters: distance(latitude, longitude, stop) })).filter(stop => stop.meters <= 1000).sort((a, b) => a.meters - b.meters);
+      const closest = [...within.filter(stop => !stop.id.startsWith('GMB:')).slice(0, 20), ...within.filter(stop => stop.id.startsWith('GMB:')).slice(0, 20)];
       locationReady.current = closest.length > 0;
       setNearby(closest);
       if (!closest.length) {

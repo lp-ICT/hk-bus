@@ -206,3 +206,16 @@ test('school entrance minibus stop remains separate from opposite bus stop', () 
   expect(schoolSideStops([entrance], 'entrance')).toEqual([entrance]);
   expect(schoolSideStops([entrance], 'opposite')).toEqual([]);
 });
+
+test('312 school supplements retain directions and never request another stop ETA', async () => {
+  const { supplement312, arrivalsFor } = await import('./bus');
+  const network = supplement312({ routes: [], snapshot_at: new Date().toISOString(), stops: [{ id: 'GMB:20001848', name: '可風中學', lat: 22.380396, lng: 114.135082, seq: 0 }], rows: [] });
+  expect(network.rows.find(row => row.bound === '2')?.stop).toBe('GMB:20001848');
+  expect(network.rows.find(row => row.bound === '1')?.stop).toBe('GMB:LOCAL-312-OPPOSITE');
+  expect(schoolSideStops(network.stops, 'entrance').map(stop => stop.id)).toEqual(['GMB:20001848']);
+  expect(schoolSideStops(network.stops, 'opposite').map(stop => stop.id)).toEqual(['GMB:LOCAL-312-OPPOSITE']);
+  expect(supplement312(network).rows.length).toBe(2);
+  const forecasts = await arrivalsFor({ company: 'GMB', route: '312', service: '2004263', bound: '2', from: '青衣站', to: '梨木樹' }, { ...network.stops[0], seq: 4.5, etaAvailable: false });
+  expect(forecasts[0].eta).toBeNull();
+  expect(forecasts[0].remark).toContain('未有官方即時預報');
+});

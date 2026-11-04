@@ -2,7 +2,7 @@ import { connectionReason, reportConnection } from './connection';
 
 export type Company = 'KMB' | 'CTB' | 'GMB';
 export type Route = { company: Company; route: string; bound: string; service: string; from: string; to: string; region?: string; description?: string };
-export type Stop = { id: string; name: string; lat: number; lng: number; seq: number; pickup?: boolean; dropoff?: boolean };
+export type Stop = { id: string; name: string; lat: number; lng: number; seq: number; pickup?: boolean; dropoff?: boolean; etaAvailable?: boolean };
 export type Favourite = { route: Route; stop: Stop };
 export type Arrival = { eta: string | null; remark: string; seq: number };
 const bases = { KMB: 'https://data.etabus.gov.hk/v1/transport/kmb', CTB: 'https://rt.data.gov.hk/v2/transport/citybus' };
@@ -116,7 +116,7 @@ export async function stopsFor(route: Route): Promise<Stop[]> {
   if (route.company === 'GMB') {
     const network = await gmbNetwork();
     const stops = new Map(network.stops.map(stop => [stop.id, stop]));
-    return network.rows.filter(row => row.service_type === route.service && row.bound === route.bound).map(row => ({ ...stops.get(row.stop)!, name: row.name, seq: Number(row.seq) }));
+    return network.rows.filter(row => row.service_type === route.service && row.bound === route.bound).map(row => ({ ...stops.get(row.stop)!, name: row.name, seq: Number(row.seq), etaAvailable: Number.isInteger(Number(row.seq)) }));
   }
   const direction = route.bound === 'O' ? 'outbound' : 'inbound';
   const path = route.company === 'KMB' ? `/route-stop/${route.route}/${direction}/${route.service}` : `/route-stop/CTB/${route.route}/${direction}`;
@@ -136,6 +136,7 @@ export async function stopsFor(route: Route): Promise<Stop[]> {
 }
 
 export async function arrivalsFor(route: Route, stop: Stop): Promise<Arrival[]> {
+  if (stop.etaAvailable === false) return [{ eta: null, remark: '此分站未有官方即時預報', seq: 1 }];
   if (route.company === 'GMB') {
     const result = await data<{ enabled: boolean; eta: { timestamp: string; remarks_tc: string | null; eta_seq: number }[] }>(`https://data.etagmb.gov.hk/eta/route-stop/${route.service}/${route.bound}/${stop.seq}`, false);
     if (!result.enabled) return [{ eta: null, remark: '此站暫未提供即時預報', seq: 1 }];
@@ -156,7 +157,7 @@ export async function routesAtStop(id: string, routes: Route[]): Promise<Favouri
     if (!stop) return [];
     return network.rows.filter(row => row.stop === id).flatMap(row => {
       const route = routes.find(route => route.company === 'GMB' && route.service === row.service_type && route.bound === row.bound);
-      return route ? [{ route, stop: { ...stop, name: row.name, seq: Number(row.seq) } }] : [];
+      return route ? [{ route, stop: { ...stop, name: row.name, seq: Number(row.seq), etaAvailable: Number.isInteger(Number(row.seq)) } }] : [];
     });
   }
   const rows = await data<Raw[]>(`${bases.KMB}/route-stop`);
@@ -193,7 +194,7 @@ export function distanceLabel(meters: number) {
 }
 
 export function schoolSideStops<T extends Stop>(stops: T[], side: 'entrance' | 'opposite') {
-  const ids = side === 'entrance' ? ['0A1DAEAFFDFF0B66', '97BB9CE7A058E809', 'GMB:20001848'] : ['DEDD6247441C8C05'];
+  const ids = side === 'entrance' ? ['0A1DAEAFFDFF0B66', '97BB9CE7A058E809', 'GMB:20001848'] : ['DEDD6247441C8C05', 'GMB:LOCAL-312-OPPOSITE'];
   return stops.filter(stop => ids.includes(stop.id));
 }
 
@@ -238,6 +239,19 @@ export type GmbNetwork = {
   routes: Route[]; stops: Stop[]; snapshot_at: string;
   rows: { company: 'GMB'; route: string; bound: string; service_type: string; stop: string; seq: number; name: string }[];
 };
+export function supplement312(network: GmbNetwork): GmbNetwork {
+  const stops = [...network.stops];
+  const rows = [...network.rows];
+  const entrance = stops.find(stop => stop.id === 'GMB:20001848');
+  if (entrance) {
+    for (const [bound, id, seq] of [['2', entrance.id, 4.5], ['1', 'GMB:LOCAL-312-OPPOSITE', 1.5]] as const) {
+      if (rows.some(row => row.service_type === '2004263' && row.bound === bound && row.stop === id)) continue;
+      if (bound === '1') stops.push({ id, name: '李炳中學對面小巴站（位置約略）', lat: 22.380167, lng: 114.135129, seq: 0, etaAvailable: false });
+      rows.push({ company: 'GMB', route: '312', bound, service_type: '2004263', stop: id, seq, name: bound === '2' ? '李炳中學門口 · 往梨木樹' : '李炳中學對面 · 往青衣站（青衣城）' });
+    }
+  }
+  return { ...network, stops, rows: rows.sort((a, b) => a.service_type.localeCompare(b.service_type) || a.bound.localeCompare(b.bound) || a.seq - b.seq) };
+}
 let gmbRequest: Promise<GmbNetwork> | undefined;
 export function gmbNetwork(): Promise<GmbNetwork> {
   if (!gmbRequest) gmbRequest = (async () => {
@@ -248,7 +262,7 @@ export function gmbNetwork(): Promise<GmbNetwork> {
       if (!response.ok) throw new Error('小巴路線資料未能載入');
       const result = await response.json();
       if (!result.routes?.length || !result.stops?.length || !result.rows?.length || !Number.isFinite(Date.parse(result.snapshot_at))) throw new Error('小巴路線資料不完整');
-      return result as GmbNetwork;
+      return supplement312(result as GmbNetwork);
     } finally { clearTimeout(timer); }
   })().catch(error => { gmbRequest = undefined; throw error; });
   return gmbRequest;

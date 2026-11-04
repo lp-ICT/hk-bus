@@ -78,7 +78,7 @@ export function directJourneys(routes: Route[], stops: Stop[], rows: RouteStop[]
     const route = routeMap.get(key)!;
     const ordered = routeStops.map(row => {
       const stop = stopMap.get(row.stop);
-      return stop ? { ...stop, seq: Number(row.seq), pickup: row.pickup, dropoff: row.dropoff } as Stop : null;
+      return stop ? { ...stop, seq: Number(row.seq), pickup: row.pickup, dropoff: row.dropoff, etaAvailable: row.company === 'GMB' ? Number.isInteger(Number(row.seq)) : undefined } as Stop : null;
     }).filter((stop): stop is Stop => !!stop).sort((a, b) => a.seq - b.seq);
     let best: Journey | undefined;
     for (const alight of ordered.filter(stop => stop.dropoff !== false && destinations.has(stop.id))) {
@@ -117,7 +117,7 @@ export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop
     const stop = stopMap.get(row.stop);
     if (!stop || !routeMap.has(key)) continue;
     if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key)!.push({ ...stop, seq: Number(row.seq), pickup: row.pickup, dropoff: row.dropoff });
+    grouped.get(key)!.push({ ...stop, seq: Number(row.seq), pickup: row.pickup, dropoff: row.dropoff, etaAvailable: row.company === 'GMB' ? Number.isInteger(Number(row.seq)) : undefined });
   }
   const restricted = (stop: Stop) => /隧道轉車站|隧道收費廣場/.test(stop.name);
   const destinations = new Set(stops.filter(stop => alightingIds ? alightingIds.includes(stop.id) : !restricted(stop) && distance(destination.lat, destination.lng, stop) <= 400).map(stop => stop.id));
