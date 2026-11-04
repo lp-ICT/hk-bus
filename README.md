@@ -1,4 +1,4 @@
-# 就到站 · 香港巴士
+# 李中學就到站 · 香港巴士
 
 繁體中文巴士到站 PWA，可在 iPhone Safari、Android Chrome 使用及加入主畫面。
 
