@@ -1,0 +1,1540 @@
+{
+  "updatedAt": "2026-11-04T15:03:40.234006+00:00",
+  "sources": [
+    "https://www.td.gov.hk/tc/transport_in_hong_kong/public_transport/non_franchised/list_of_approved_rs_hk/index.html",
+    "https://www.td.gov.hk/tc/transport_in_hong_kong/public_transport/non_franchised/list_of_approved_rs_kln/index.html",
+    "https://www.td.gov.hk/tc/transport_in_hong_kong/public_transport/non_franchised/list_of_approved_rs_nt/index.html"
+  ],
+  "routes": [
+    {
+      "route": "HR42",
+      "description": "下碧瑤灣 - 堅尼地城港鐵站 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/HR42-TChi.pdf"
+    },
+    {
+      "route": "HR44",
+      "description": "南灣 - 淺水灣",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260601 - HR44 SofS_chi.pdf"
+    },
+    {
+      "route": "HR45",
+      "description": "陽明山莊 - 中環 (愛丁堡廣場)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260510 - HR45 EMob_chi.pdf"
+    },
+    {
+      "route": "HR46",
+      "description": "陽明山莊 - 灣仔",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/HR46 EMob ver_chi_250715.pdf"
+    },
+    {
+      "route": "HR48",
+      "description": "淺水灣 - 中環",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260709 - HR48 EMob_chi.pdf"
+    },
+    {
+      "route": "HR50",
+      "description": "南灣 - 中環",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260511 - HR50 EMob_chi.pdf"
+    },
+    {
+      "route": "HR53",
+      "description": "浪琴園 - 中環 (康樂廣場)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260701 - HR53 EMob_chi.pdf"
+    },
+    {
+      "route": "HR57",
+      "description": "紅山半島 - 海洋公園站",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260715 - HR57 EMob_chi.pdf"
+    },
+    {
+      "route": "HR58",
+      "description": "紅山半島 - 筲箕灣站",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260715 - HR58 EMob_chi.pdf"
+    },
+    {
+      "route": "HR59",
+      "description": "紅山半島 - 中環",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260715 - HR59 EMob_chi.pdf"
+    },
+    {
+      "route": "HR60",
+      "description": "淺水灣道 - 銅鑼灣 (利園山道) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/HR60%20TSChi_Emob_20240201.pdf"
+    },
+    {
+      "route": "HR78",
+      "description": "富豪海灣 - 赤柱廣場",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/250901 - HR78 EMob chi.pdf"
+    },
+    {
+      "route": "HR79",
+      "description": "大潭道33號 (曼克頓花園) - 中環 (會所街)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260801 - HR79 EMob_chi.pdf"
+    },
+    {
+      "route": "HR85",
+      "description": "淺水灣道129號 (The Lily) - 灣仔六國酒店 / 海洋公園站 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/251108 - HR85 EMob chi.pdf"
+    },
+    {
+      "route": "HR87",
+      "description": "南灣 ( 鴨脷洲海旁道 ) －黃竹坑站／康樂廣場／香港仔 ( 循環線 )",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/250512_HR87_Web_chi.pdf"
+    },
+    {
+      "route": "HR88",
+      "description": "美景臺 - 干諾道中 (永安集團大廈) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/hr 88 (8.6.2020)c.pdf"
+    },
+    {
+      "route": "HR90",
+      "description": "浪琴園 - 赤柱",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260701 - HR90 EMob_chi.pdf"
+    },
+    {
+      "route": "HR91",
+      "description": "淺水灣道第101號 (淺水灣花園大廈) - 海洋公園站 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/hr_91_21.3.2022c.pdf"
+    },
+    {
+      "route": "HR93",
+      "description": "深水灣徑8號 - 海洋公園站 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/HR93%20TChi_Emob_20230701.pdf"
+    },
+    {
+      "route": "HR49",
+      "description": "樂信臺 - 中環 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260510 - HR49 SS_chi.pdf"
+    },
+    {
+      "route": "HR54",
+      "description": "帝景園 - 中環 (愛丁堡廣場) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260510 - HR54 SS_chi.pdf"
+    },
+    {
+      "route": "HR55",
+      "description": "帝景園 - 灣仔 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/hr55c(22.8.2016)new.pdf"
+    },
+    {
+      "route": "HR56",
+      "description": "嘉兆台 - 中環 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/hr56c_20180101.pdf"
+    },
+    {
+      "route": "HR62",
+      "description": "干德道 (聯邦花園) - 中環 (金鐘)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/hr 62 (23.3.2020) c.pdf"
+    },
+    {
+      "route": "HR64",
+      "description": "半山帝豪閣 - 金鐘 (德立街) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/hr64c_20240601.pdf"
+    },
+    {
+      "route": "HR65",
+      "description": "西摩道 (高雲台) - 中環 (愛丁堡廣場) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260801 - HR65 SS_chi.pdf"
+    },
+    {
+      "route": "HR66",
+      "description": "地利根德里 (蘭心閣) - 中環 (康樂廣場) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260615 - HR66 SS_chi.pdf"
+    },
+    {
+      "route": "HR67",
+      "description": "舊山頂道 (曉峰閣) - 中環 (愛丁堡廣場) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260510 - HR67 SS_chi.pdf"
+    },
+    {
+      "route": "HR68",
+      "description": "舊山頂道 (花園台) - 金鐘 (添馬街) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260610 - HR68 SS_chi.pdf"
+    },
+    {
+      "route": "HR69",
+      "description": "馬己仙峽道 (港景別墅) - 金鐘 (添馬街) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/HR69c_20221109.pdf"
+    },
+    {
+      "route": "HR71",
+      "description": "舊山頂道 (地利根德閣) - 中環 (愛丁堡廣場) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260728 - HR71 SS_chi.pdf"
+    },
+    {
+      "route": "HR72",
+      "description": "舊山頂道 (地利根德閣) - 金鐘 (添馬街) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260728 - HR72 SS_chi.pdf"
+    },
+    {
+      "route": "HR73",
+      "description": "干德道 (明珠台) - 金鐘 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/hr73c_20250210.pdf"
+    },
+    {
+      "route": "HR75",
+      "description": "蒲飛路 (翰林軒) - 上環 (信德中心) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/HR75_SofS_20260101_Chi_.pdf"
+    },
+    {
+      "route": "HR76",
+      "description": "梅道一號 - 金鐘 (德立街) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/hr 76 (6.4.2020)c.pdf"
+    },
+    {
+      "route": "HR77",
+      "description": "梅道 (嘉富麗苑) - 中環 (愛丁堡廣場) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260510 - HR77 SS_chi.pdf"
+    },
+    {
+      "route": "HR84",
+      "description": "種植道 (雲嶺山莊) - 中環 (雪廠街)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/hr84c 1.11.2023 tc.pdf"
+    },
+    {
+      "route": "HR96",
+      "description": "半山雍景臺 - 金鐘(德立街) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/HR96 SofS_Chi_202604.pdf"
+    },
+    {
+      "route": "HR51",
+      "description": "比華利山 - 銅鑼灣 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/240101 - HR51 SofS chi.pdf"
+    },
+    {
+      "route": "HR70",
+      "description": "堅尼地道 (竹林苑) - 中環 (雪廠街) (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/200401 - HR70 SofS chi.pdf"
+    },
+    {
+      "route": "HR74",
+      "description": "堅尼地道150號 - 中環 (愛丁堡廣場)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/260511 - HR74 SofS chi.pdf"
+    },
+    {
+      "route": "HR97",
+      "description": "Mount Nicholson - 皇后大道東合和中心 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/250601 - HR97 SofS chi.pdf"
+    },
+    {
+      "route": "HR80",
+      "description": "寶馬山花園 - 北角 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/hr80_2024.10_tc.pdf"
+    },
+    {
+      "route": "HR81",
+      "description": "寶馬山花園 - 銅鑼灣 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/261015 - HR81 SS_chi.pdf"
+    },
+    {
+      "route": "HR94",
+      "description": "柏蔚山 - 北角站 (循環線)",
+      "region": "香港島",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4787/20240101_HR94_TC.pdf"
+    },
+    {
+      "route": "KR11",
+      "description": "爵士花園 - 油麻地碧街",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/sc/content_4788/Residents Service Route KR11 SC.pdf"
+    },
+    {
+      "route": "KR12",
+      "description": "帝庭園 - 東方街",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/sc/content_4788/KR12_20250901_tc.pdf"
+    },
+    {
+      "route": "KR13",
+      "description": "京士柏山 - 碧街",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/sc/content_4788/KR13_20251001_tc.pdf"
+    },
+    {
+      "route": "KR14",
+      "description": "御金．國峯 - 九龍站港鐵站",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4788/KR14_Chi_20200101_tc.pdf"
+    },
+    {
+      "route": "KR15",
+      "description": "凱帆軒 - 奧海城二期",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4788/TKMK/KR15 CHI.pdf"
+    },
+    {
+      "route": "KR16",
+      "description": "浪澄灣 - 奧海城一期",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4788/TKMK/KR16 CHI.pdf"
+    },
+    {
+      "route": "KR17",
+      "description": "一號銀海 - 奧海城一期",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4788/TKMK/20250601_KR17 CHI_TD website.pdf"
+    },
+    {
+      "route": "KR18",
+      "description": "瓏壐 - 奧海城一期",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4788/TKMK/kr18_chi_rev.pdf"
+    },
+    {
+      "route": "KR21",
+      "description": "翠竹花園 - 樂富巴士總站",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4788/KR21_20260501_SoS_Chi.pdf"
+    },
+    {
+      "route": "KR41",
+      "description": "畢架山花園 - 九龍塘 (循環線)",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4788/SofS KR41_20250901_tc.pdf"
+    },
+    {
+      "route": "KR42",
+      "description": "畢架山花園 - 石硤尾 (循環線)",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4788/SofS KR42_20250901_tc.pdf"
+    },
+    {
+      "route": "KR44",
+      "description": "帝景峰 - 又一城",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4788/TKSSP/kr44_c_ss_new_tc.pdf"
+    },
+    {
+      "route": "KR45",
+      "description": "緹山及緹外 – 又一城",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4788/TKSSP/kr45_ss_new_tc.pdf"
+    },
+    {
+      "route": "KR51",
+      "description": "畢架山一號 - 多褔道 (循環線)",
+      "region": "九龍",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4788/sofs_kr51 chi (20160520).pdf"
+    },
+    {
+      "route": "DB00R",
+      "description": "愉景灣 (愉景灣區內道路 )",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNIS2/SofS_RS DB00R_Chi.pdf"
+    },
+    {
+      "route": "DB01R",
+      "description": "愉景灣 - 東涌",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNIS2/DB01R/SofS_RS DB01R_Chi.pdf"
+    },
+    {
+      "route": "DB02R",
+      "description": "愉景灣 - 機場",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNIS2/DB02R/SofS_RS DB02R_Chi.pdf"
+    },
+    {
+      "route": "DB03R",
+      "description": "愉景灣 - 欣澳",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNIS2/DB03R/SofS_RS DB03R_Chi.pdf"
+    },
+    {
+      "route": "DB04R",
+      "description": "愉景灣游艇會 - 愉景灣愉景廣場巴士總站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/SofS - RS DB04R - Website - 20240804 TC.pdf"
+    },
+    {
+      "route": "DB06R",
+      "description": "愉景灣康樂會 - 愉景灣海澄湖畔會所",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/SofS - RS DB06R - Website - 20240804 TC.pdf"
+    },
+    {
+      "route": "DB08R",
+      "description": "愉景灣 - 中環三號碼頭",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNIS2/DB08R/SofS_RS DB08R_Chi.pdf"
+    },
+    {
+      "route": "NR04",
+      "description": "映灣園 - 東涌站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/R_SofS_RS_NR04_Website_20251001_Chi.pdf"
+    },
+    {
+      "route": "NR05",
+      "description": "東環至東涌站巴士總站(循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/R_SofS_RS_NR05_Website_20250801_Chi.pdf"
+    },
+    {
+      "route": "NR06",
+      "description": "昇薈至東涌站巴士總站(循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/SofS_RS_NR06_Website_20240101_Chi.pdf"
+    },
+    {
+      "route": "NR10",
+      "description": "華明邨 - 中環",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/PTICO2/NR10_chi_20250814.pdf"
+    },
+    {
+      "route": "NR13",
+      "description": "欣翠花園 - 上水站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNN/nr13_chi_20240701.pdf"
+    },
+    {
+      "route": "NR14",
+      "description": "蔚翠花園 - 上水站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/PTICO2/NR14_chi_20251027.pdf"
+    },
+    {
+      "route": "NR109",
+      "description": "奕翠園 (上水) - 上水站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNN/nr109_chi.pdf"
+    },
+    {
+      "route": "NR112",
+      "description": "牽晴間 (粉嶺) - 蓬瀛仙館",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr112_chi_20250106.pdf"
+    },
+    {
+      "route": "NR115",
+      "description": "古洞路(天巒) - 元朗(安信街)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr115_chi_250201.pdf"
+    },
+    {
+      "route": "NR116",
+      "description": "歌賦嶺 - 粉嶺站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/PTICO2/NR116_chi  20250929.pdf"
+    },
+    {
+      "route": "NR117",
+      "description": "高爾夫．御苑 – 上水站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNN/nr117r_chi.pdf"
+    },
+    {
+      "route": "NR118",
+      "description": "博愛昇平村 – 上水港鐵站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/NR118_Schedule of Services_Chinese_09092024.pdf"
+    },
+    {
+      "route": "NR29",
+      "description": "西貢西灣村 - 西貢大會堂",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/20251227_nr29_tc.pdf"
+    },
+    {
+      "route": "NR207",
+      "description": "早禾居 - 西貢親民街",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/20240325_nr207_tc.pdf"
+    },
+    {
+      "route": "NR211",
+      "description": "清水灣柏濤灣 - 將軍澳培成里",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNPP/nr 211 chi.pdf"
+    },
+    {
+      "route": "NR214",
+      "description": "西貢曉嵐閣 - 坪石公共運輸交匯處 (循環線 )",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/20261001_NR 214 CHI_online.pdf"
+    },
+    {
+      "route": "NR35",
+      "description": "海濱花園 - 觀塘",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW2/NR35_upload to WCMS_trad Chi.pdf"
+    },
+    {
+      "route": "NR38",
+      "description": "海濱花園 - 中環 /金鐘",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW2/NR38_upload to WCMS_trad Chi.pdf"
+    },
+    {
+      "route": "NR319",
+      "description": "豪景花園 - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW/NR319c_20240701.pdf"
+    },
+    {
+      "route": "NR320",
+      "description": "金麗苑 (荃灣) - 荃灣街市街",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr320c.pdf"
+    },
+    {
+      "route": "NR322",
+      "description": "麗城花園 (第一期) - 九龍城渡輪碼頭",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr322c.pdf"
+    },
+    {
+      "route": "NR323",
+      "description": "麗城花園 (第三期) - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW/NR323c_20161101.pdf"
+    },
+    {
+      "route": "NR324",
+      "description": "恆麗園 - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW/NR324c_20230701.pdf"
+    },
+    {
+      "route": "NR326",
+      "description": "麗城花園 (第二期) - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/NR326tc.pdf"
+    },
+    {
+      "route": "NR327",
+      "description": "麗城花園 (第一期) - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr327c.pdf"
+    },
+    {
+      "route": "NR328",
+      "description": "翠濤閣 - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/NR328tc.pdf"
+    },
+    {
+      "route": "NR329",
+      "description": "麗都花園 - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr329c.pdf"
+    },
+    {
+      "route": "NR330",
+      "description": "馬灣 (東灣巴士總站) - 青衣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW/NR330c_20240101_r.pdf"
+    },
+    {
+      "route": "NR331",
+      "description": "馬灣 (珀欣路) - 荃灣 (西樓角路) (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/NR331tc.pdf"
+    },
+    {
+      "route": "NR332",
+      "description": "馬灣 (東灣巴士總站) - 葵芳 (新都會廣場)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW/NR332c_20250301_r.pdf"
+    },
+    {
+      "route": "NR333",
+      "description": "朗逸峯 - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr333c.pdf"
+    },
+    {
+      "route": "NR334",
+      "description": "馬灣 (東灣巴士總站) - 香港國際機場 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW/NR334c_20240201_r.pdf"
+    },
+    {
+      "route": "NR335",
+      "description": "寶雲匯 - 荃灣站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW/NR335c_20240101.pdf"
+    },
+    {
+      "route": "NR336",
+      "description": "碧堤半島 - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW/NR336c_20250101.pdf"
+    },
+    {
+      "route": "NR337",
+      "description": "韻濤居 - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr337c.pdf"
+    },
+    {
+      "route": "NR338",
+      "description": "馬灣 (東灣巴士總站) - 中環渡輪碼頭 (2號碼頭) (循環線) [通宵服務]",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW/NR338c_20240101_r.pdf"
+    },
+    {
+      "route": "NR338S",
+      "description": "馬灣 (東灣巴士總站) - 中環渡輪碼頭 (2號碼頭) (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW/NR338Sc_20250814.pdf"
+    },
+    {
+      "route": "NR339",
+      "description": "縉皇居 - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW/NR339c_20220301_clean.pdf"
+    },
+    {
+      "route": "NR340",
+      "description": "海韻花園 - 荃灣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/NR340tc.pdf"
+    },
+    {
+      "route": "NR342",
+      "description": "荃威花園 - 觀塘",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTW2/nr342c.pdf"
+    },
+    {
+      "route": "NR41",
+      "description": "長康 (涌美路 ) - 尖沙咀",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNKWT/NR41tc.pdf"
+    },
+    {
+      "route": "NR406",
+      "description": "灝景灣 (青衣 ) - 德海街 (荃灣 )(循環線 )",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNKWT/NR406tc.pdf"
+    },
+    {
+      "route": "NR411",
+      "description": "曉峰居 (荔枝角 ) - 美孚 (循環線 )",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNKWT/C_NR411.pdf"
+    },
+    {
+      "route": "NR412",
+      "description": "曉峰園 - 青衣站 (循環線 )",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNKWT/nr412_conditions_chinese_(wef 23_9_2019).pdf"
+    },
+    {
+      "route": "NR413",
+      "description": "月海灣 (葵聯路) - 葵涌廣場(興寧路) (循環線 )",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNKWT/C_NR413.pdf"
+    },
+    {
+      "route": "NR414",
+      "description": "嘉翠園 - 葵涌廣場(興寧路) (循環線 )",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNKWT/C_NR414_1.pdf"
+    },
+    {
+      "route": "NR50",
+      "description": "大埔策誠軒 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr50.pdf"
+    },
+    {
+      "route": "NR51",
+      "description": "大埔康樂園 - 大埔墟",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr51.pdf"
+    },
+    {
+      "route": "NR53",
+      "description": "大埔大元邨 - 長沙灣",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr53.pdf"
+    },
+    {
+      "route": "NR54",
+      "description": "大埔富善邨 - 長沙灣",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr54.pdf"
+    },
+    {
+      "route": "NR59",
+      "description": "大埔新峰花園 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr59.pdf"
+    },
+    {
+      "route": "NR502",
+      "description": "大埔翡翠花園 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr502.pdf"
+    },
+    {
+      "route": "NR503",
+      "description": "大埔花園 - 太和站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr503.pdf"
+    },
+    {
+      "route": "NR507",
+      "description": "大埔龍景別墅 - 中環",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr507.pdf"
+    },
+    {
+      "route": "NR508",
+      "description": "大埔悠然山莊 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr508.pdf"
+    },
+    {
+      "route": "NR509",
+      "description": "大埔倚龍山莊 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr509.pdf"
+    },
+    {
+      "route": "NR510",
+      "description": "大埔盈峰翠邸 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr510.pdf"
+    },
+    {
+      "route": "NR511",
+      "description": "大埔聚豪天下 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr511.pdf"
+    },
+    {
+      "route": "NR512",
+      "description": "大埔鹿茵山莊 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr512.pdf"
+    },
+    {
+      "route": "NR513",
+      "description": "大埔嘉豐花園 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr513.pdf"
+    },
+    {
+      "route": "NR516",
+      "description": "大埔寶馬山 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr516.pdf"
+    },
+    {
+      "route": "NR517",
+      "description": "大埔雍怡雅苑 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr517.pdf"
+    },
+    {
+      "route": "NR519",
+      "description": "大埔淺月灣 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr519.pdf"
+    },
+    {
+      "route": "NR524",
+      "description": "帝琴灣 - 沙田新城市廣場",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr524.pdf"
+    },
+    {
+      "route": "NR527",
+      "description": "大埔滌濤山 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr527.pdf"
+    },
+    {
+      "route": "NR528",
+      "description": "大埔龍成堡 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr528.pdf"
+    },
+    {
+      "route": "NR529",
+      "description": "大埔比華利山別墅 - 大埔墟站(循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr529.pdf"
+    },
+    {
+      "route": "NR530",
+      "description": "天賦海灣 - 大埔墟 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr530.pdf"
+    },
+    {
+      "route": "NR532",
+      "description": "大埔洞梓山莊 - 大埔墟站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr532.pdf"
+    },
+    {
+      "route": "NR533",
+      "description": "大埔嵐山 - 太和站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr533.pdf"
+    },
+    {
+      "route": "NR534",
+      "description": "逸瓏灣 - 大埔墟 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr534.pdf"
+    },
+    {
+      "route": "NR536",
+      "description": "大埔帝欣苑二期 - 太和站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr536.pdf"
+    },
+    {
+      "route": "NR537",
+      "description": "大埔帝欣苑一期 - 太和站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr537.pdf"
+    },
+    {
+      "route": "NR538",
+      "description": "大埔天鑽 - 大埔運頭塘",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr538.pdf"
+    },
+    {
+      "route": "NR539",
+      "description": "大埔林海山城 - 太和站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr539.pdf"
+    },
+    {
+      "route": "NR540",
+      "description": "大埔善樓 - 大埔墟站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr540.pdf"
+    },
+    {
+      "route": "NR61",
+      "description": "沙田第一城 - 藍田",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr61c.pdf"
+    },
+    {
+      "route": "NR83",
+      "description": "沙田廣源邨 - 中環",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/MOS/nr83.pdf"
+    },
+    {
+      "route": "NR84",
+      "description": "馬鞍山村 - 馬鞍山站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/MOS/nr84.pdf"
+    },
+    {
+      "route": "NR88",
+      "description": "沙田第一城 - 中環",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr88c.pdf"
+    },
+    {
+      "route": "NR809",
+      "description": "沙田曉翠山莊 - 大圍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr809c.pdf"
+    },
+    {
+      "route": "NR810",
+      "description": "沙田聚龍居 - 九龍塘站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/NR810_C.pdf"
+    },
+    {
+      "route": "NR812",
+      "description": "碧濤花園 (第 3 期 ) - 源禾路",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/MOS/nr812.pdf"
+    },
+    {
+      "route": "NR815",
+      "description": "火炭駿景園 - 沙田新城市廣場",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr815.pdf"
+    },
+    {
+      "route": "NR817",
+      "description": "湖景花園 - 大圍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr817c.pdf"
+    },
+    {
+      "route": "NR818",
+      "description": "金泰別墅 - 大圍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/NR818_C.pdf"
+    },
+    {
+      "route": "NR819",
+      "description": "沙田恆峰花園 - 大圍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr819c.pdf"
+    },
+    {
+      "route": "NR820",
+      "description": "大埔公路沙田花園 - 大圍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/NR820_C.pdf"
+    },
+    {
+      "route": "NR822",
+      "description": "馬鞍山聽濤雅苑 - 大學站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/MOS/nr822.pdf"
+    },
+    {
+      "route": "NR823",
+      "description": "馬鞍山聽濤雅苑 - 鑽石山站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr823c 14.9.22.pdf"
+    },
+    {
+      "route": "NR824",
+      "description": "馬鞍山聽濤雅苑 - 馬鞍山海栢花園",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr824c 14.9.22.pdf"
+    },
+    {
+      "route": "NR826",
+      "description": "馬鞍山雅典居 - 沙田排頭街",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr826.pdf"
+    },
+    {
+      "route": "NR829",
+      "description": "沙田帝堡城 - 沙田新城市廣場 (第一期 )",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/MOS/nr829.pdf"
+    },
+    {
+      "route": "NR831",
+      "description": "馬鞍山翠擁華庭 - 大學站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/MOS/nr831.pdf"
+    },
+    {
+      "route": "NR832",
+      "description": "馬鞍山觀瀾雅軒 - 大學站 / 鞍駿街 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/MOS/nr832.pdf"
+    },
+    {
+      "route": "NR833",
+      "description": "大圍瑞峰花園 - 大圍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr833.pdf"
+    },
+    {
+      "route": "NR834",
+      "description": "中文大學教職員宿舍第十、十一苑 -  大學站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr834c.pdf"
+    },
+    {
+      "route": "NR835",
+      "description": "嘉華星濤灣 - 大學站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr835.pdf"
+    },
+    {
+      "route": "NR837",
+      "description": "沙田壹號雲頂 – 沙田市中心(循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr837c.pdf"
+    },
+    {
+      "route": "NR838",
+      "description": "馬鞍山翠擁華庭 - 鑽石山上元街",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/MOS/nr838.pdf"
+    },
+    {
+      "route": "NR839",
+      "description": "玖瓏山 - 大圍站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr839c.pdf"
+    },
+    {
+      "route": "NR840",
+      "description": "薈蕎 - 大圍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr840c.pdf"
+    },
+    {
+      "route": "NR841",
+      "description": "瓏珀山 - 第一城站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr841c.pdf"
+    },
+    {
+      "route": "NR842",
+      "description": "畢架．金峰 - 大圍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr842c.pdf"
+    },
+    {
+      "route": "NR843",
+      "description": "名日．九肚山 - 火炭站（循環線）",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr843c.pdf"
+    },
+    {
+      "route": "NR845",
+      "description": "富豪山峰 - 火炭站（循環線）",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNST/nr845c.pdf"
+    },
+    {
+      "route": "NR79",
+      "description": "置樂花園 - 紅磡站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/NR79_C.pdf"
+    },
+    {
+      "route": "NR700",
+      "description": "山景邨 - 紅磡站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/20260204/nr700 TC.pdf"
+    },
+    {
+      "route": "NR706",
+      "description": "安定邨 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/NR706_C.pdf"
+    },
+    {
+      "route": "NR707",
+      "description": "大興花園 - 紅磡站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/nr707_c.pdf"
+    },
+    {
+      "route": "NR709",
+      "description": "三聖邨 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/20260722/20260722 NR709 Chi.pdf"
+    },
+    {
+      "route": "NR710",
+      "description": "山景邨 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/nr710c.pdf"
+    },
+    {
+      "route": "NR711",
+      "description": "兆麟苑 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/NR711_C.pdf"
+    },
+    {
+      "route": "NR714",
+      "description": "悅湖山莊 - 紅磡站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/nr%20714%20c.pdf"
+    },
+    {
+      "route": "NR715",
+      "description": "尖沙咀東至兆山苑",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/NR715_C.pdf"
+    },
+    {
+      "route": "NR716",
+      "description": "翠林花園 - 灣仔 / 中環",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/nr716c.pdf"
+    },
+    {
+      "route": "NR718",
+      "description": "恒順園 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/NR718_C.pdf"
+    },
+    {
+      "route": "NR719",
+      "description": "寶怡花園 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/nr719c.pdf"
+    },
+    {
+      "route": "NR720",
+      "description": "兆麟苑 - 紅磡碼頭",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/NR720_C.pdf"
+    },
+    {
+      "route": "NR723",
+      "description": "田景邨 - 金鐘 / 中環",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/nr723c.pdf"
+    },
+    {
+      "route": "NR725",
+      "description": "翠寧花園 - 觀塘碼頭",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/NR725_C.pdf"
+    },
+    {
+      "route": "NR726",
+      "description": "翠寧花園 - 銅鑼灣",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/NR726_C.pdf"
+    },
+    {
+      "route": "NR727",
+      "description": "悅湖山莊 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/nr%20727%20c.pdf"
+    },
+    {
+      "route": "NR731",
+      "description": "大興花園 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/NR731c.pdf"
+    },
+    {
+      "route": "NR733",
+      "description": "悅湖山莊 - 觀塘",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/nr%20733%20c.pdf"
+    },
+    {
+      "route": "NR740",
+      "description": "新屯門中心 - 尖沙咀東",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/NR740_C.pdf"
+    },
+    {
+      "route": "NR741",
+      "description": "新屯門中心 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/NR741_C.pdf"
+    },
+    {
+      "route": "NR743",
+      "description": "長沙灣至盈豐園",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/nr743c.pdf"
+    },
+    {
+      "route": "NR745",
+      "description": "兆山苑 - 觀塘",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/NR745_C.pdf"
+    },
+    {
+      "route": "NR748",
+      "description": "大興花園 - 觀塘",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/NR748c.pdf"
+    },
+    {
+      "route": "NR754",
+      "description": "龍門居至青衣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM3/NR754_C.pdf"
+    },
+    {
+      "route": "NR758",
+      "description": "屯門浪琴軒 / 海琴軒 - 荃灣站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/20250409/WCMS 758R Chi 20241201.pdf"
+    },
+    {
+      "route": "NR759",
+      "description": "茵翠豪庭 - 兆康站 / 屯門市中心 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/nr759_c.pdf"
+    },
+    {
+      "route": "NR760",
+      "description": "屯門龍珠島花園 - 黃金海岸 / 青海圍 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/20250409/WCMS 760R Chi 20250315.pdf"
+    },
+    {
+      "route": "NR761",
+      "description": "屯門浪濤灣 - 荃灣站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/NR761_C.pdf"
+    },
+    {
+      "route": "NR762",
+      "description": "豫豐花園 - 兆康站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/NR762C.pdf"
+    },
+    {
+      "route": "NR762A",
+      "description": "豫豐花園 - 屯門市中心 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/NR762Ac.pdf"
+    },
+    {
+      "route": "NR763",
+      "description": "叠茵庭 - 屯門市中心 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/nr763_c.pdf"
+    },
+    {
+      "route": "NR764",
+      "description": "綠怡居 - 屯門站公共運輸交匯處",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM1/nr764c.pdf"
+    },
+    {
+      "route": "NR765",
+      "description": "星堤 - 荃灣站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/NR765_C.pdf"
+    },
+    {
+      "route": "NR766",
+      "description": "黃金海岸 - 香港國際機場",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/20250409/WCMS 766R Chi 20250303.pdf"
+    },
+    {
+      "route": "NR767",
+      "description": "黃金海岸 - 荃灣西站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/20260204/20251101 NR767 TC.pdf"
+    },
+    {
+      "route": "NR768",
+      "description": "黃金海岸 - 奧運站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/20251224/20251222 NR768 TC.pdf"
+    },
+    {
+      "route": "NR769",
+      "description": "屯門浪琴軒/海琴軒 - 九龍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/NR769 WCMS Chi.pdf"
+    },
+    {
+      "route": "NR770",
+      "description": "滿名山 – 屯門站公共運輸交匯處(循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/20260204/NR770 20260101 TC.pdf"
+    },
+    {
+      "route": "NR771",
+      "description": "NAPA – 屯門站公共運輸交匯處(循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNTM2/20251224/20250806 NR771 TC.pdf"
+    },
+    {
+      "route": "NR91",
+      "description": "元朗錦綉花園 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/nr91_online_chi_r.pdf"
+    },
+    {
+      "route": "NR92",
+      "description": "元朗錦綉花園 - 荃灣",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/nr92_online_chi_r.pdf"
+    },
+    {
+      "route": "NR93",
+      "description": "元朗錦綉花園 - 元朗(安信街)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/nr93_online_chi_r.pdf"
+    },
+    {
+      "route": "NR94",
+      "description": "元朗錦綉花園 - 上水站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/nr94_online_chi.pdf"
+    },
+    {
+      "route": "NR913",
+      "description": "元朗加州花園 - 上水站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL1/nr913_chi.pdf"
+    },
+    {
+      "route": "NR914",
+      "description": "元朗加州花園 - 元朗站(循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL1/nr914_chi.pdf"
+    },
+    {
+      "route": "NR915",
+      "description": "元朗加州花園 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL1/nr915_chi.pdf"
+    },
+    {
+      "route": "NR917",
+      "description": "元朗(粉錦公路) - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/NR917_online_chi.pdf"
+    },
+    {
+      "route": "NR918",
+      "description": "林錦公路 - 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/NR918_online_chi_20240902.pdf"
+    },
+    {
+      "route": "NR922",
+      "description": "元朗(萬豐大廈) - 中環 / 灣仔",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR922 details_chi_Online_20260515.pdf"
+    },
+    {
+      "route": "NR923",
+      "description": "元朗加州豪園 - 上水站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL1/nr923_chi.pdf"
+    },
+    {
+      "route": "NR924",
+      "description": "元朗加州豪園 - 元朗站(循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL1/nr924_chi.pdf"
+    },
+    {
+      "route": "NR928",
+      "description": "元朗(萬豐大厦) - 觀塘",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR928 details_chi_Online_20260515.pdf"
+    },
+    {
+      "route": "NR936",
+      "description": "元朗錦綉花園 - 紅磡站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/nr936_online_chi.pdf"
+    },
+    {
+      "route": "NR940",
+      "description": "元朗廈村 - 元朗壽富街",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR940 details_chi_Online_20260515.pdf"
+    },
+    {
+      "route": "NR941",
+      "description": "下白泥 - 元朗東堤街",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR941 details_chi_Online.pdf"
+    },
+    {
+      "route": "NR945",
+      "description": "元朗(益發/大興大厦) - 北角",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/20250616 NR945_TC3.pdf"
+    },
+    {
+      "route": "NR948",
+      "description": "元朗錦綉花園 - 青衣站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/nr948_online_chi.pdf"
+    },
+    {
+      "route": "NR949",
+      "description": "元朗柏麗豪園 - 元朗(安信街)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr949_chi.pdf"
+    },
+    {
+      "route": "NR950",
+      "description": "元朗御豪山莊 - 元朗(安信街)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR950_CHI.pdf"
+    },
+    {
+      "route": "NR951",
+      "description": "元朗御景園 - 元朗(安信街)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR951_CHI.pdf"
+    },
+    {
+      "route": "NR954",
+      "description": "天水圍嘉湖山莊景湖居 - 天水圍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL1/nr954_chi.pdf"
+    },
+    {
+      "route": "NR955",
+      "description": "天水圍嘉湖山莊麗湖居 - 天水圍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr955_chi.pdf"
+    },
+    {
+      "route": "NR956",
+      "description": "天水圍嘉湖山莊美湖居 - 天水圍站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr956_chi.pdf"
+    },
+    {
+      "route": "NR957",
+      "description": "元朗欖口村 - 西菁街",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/NR957_online_chi_20260601.pdf"
+    },
+    {
+      "route": "NR958",
+      "description": "菁雅居 - 元朗",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/NR958_online_chi_20240906.pdf"
+    },
+    {
+      "route": "NR960",
+      "description": "六本木 - 錦上路站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/NR960_online_chi.pdf"
+    },
+    {
+      "route": "NR960A",
+      "description": "六本木 - 元朗泰祥街 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/NR960A_online_chi.pdf"
+    },
+    {
+      "route": "NR962",
+      "description": "蝶翠峰  - 元朗市 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR962 details_chi_Online.pdf"
+    },
+    {
+      "route": "NR963",
+      "description": "葡萄園 – 新元朗中心",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/YL14/nr963_chi.pdf"
+    },
+    {
+      "route": "NR964",
+      "description": "原築 - 新元朗中心 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR964_CHI.pdf"
+    },
+    {
+      "route": "NR965",
+      "description": "朗晴居 - 形點II (循環線) *列印版本",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR965_CHI.pdf"
+    },
+    {
+      "route": "NR966",
+      "description": "朗怡居 - 元朗廣場 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR966_CHI.pdf"
+    },
+    {
+      "route": "NR967",
+      "description": "翹翠峰 - 西菁街 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR967_CHI.pdf"
+    },
+    {
+      "route": "NR968",
+      "description": "四季名園 - 大欖隧道轉車站(循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/nr968_details_online_chi_20210701.pdf"
+    },
+    {
+      "route": "NR969",
+      "description": "尚悅 - 新元朗中心(循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/nr969_chi.pdf"
+    },
+    {
+      "route": "NR971",
+      "description": "溱柏－媽橫路（循環線）",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR971_CHI.pdf"
+    },
+    {
+      "route": "NR972",
+      "description": "譽88－形點II（循環線）",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR972 details_chi_Online_20260415.pdf"
+    },
+    {
+      "route": "NR974",
+      "description": "元朗定福花園–媽橫路(循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR974 details_chi_Online.pdf"
+    },
+    {
+      "route": "NR975",
+      "description": "尚悅．嶺–元朗站（循環線）",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL2/NR975 details_chi_Online_20260501.pdf"
+    },
+    {
+      "route": "NR976",
+      "description": "新田部屋 – 錦上路站 (循環線)",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL1/NR976_CH.pdf"
+    },
+    {
+      "route": "NR977",
+      "description": "路德會七星薈－大埔墟站",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/NR977_online_chi_20260522.pdf"
+    },
+    {
+      "route": "NR978",
+      "description": "朗天峰 - 朗樂路",
+      "region": "新界",
+      "source": "https://www.td.gov.hk/filemanager/tc/content_4796/TNYL3/NR978%20details_chi_Online.pdf"
+    }
+  ]
+}

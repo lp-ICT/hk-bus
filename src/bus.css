@@ -43,3 +43,6 @@
 .timetable-row { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 12px 0; border-bottom: 1px solid #d5ded8; }
 .timetable-row strong { width: 100%; }
 @media (max-width: 480px) { .route-map { height: 240px; } }
+
+.resident-route { text-decoration: none; color: inherit; }
+.resident-route .route-number { font-size: clamp(1rem, 4vw, 1.5rem); overflow-wrap: anywhere; }

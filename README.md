@@ -91,3 +91,12 @@ Leaflet 地圖標示查詢位置及各車站，點選車站同步選取及捲動
 「時間表／服務時間」：綠色小巴按官方 route_id、route_seq 取 headways，顯示適用星期、公眾假期、起點站服務時段及班次間隔，支援 end_time=null 的單班。巴士提供九巴／龍運及城巴官方查詢入口，並清楚提示自行選擇路線和方向。資料來源：https://data.etagmb.gov.hk/static/GMB_ETA_API_Specification.pdf 。
 
 現有公開 ETA 中 eta_seq 只代表該站預報順序，並非可跨站追蹤的車輛識別碼；未製作「指定同一班車沿途到站時間」，避免將不同車輛預報拼接。
+
+## 居民巴士路線目錄
+
+路線搜尋包括運輸署「已獲批准的居民服務路線」香港島、九龍、新界三區全部 255 項（2026-11-04 快照，包含愉景灣）。可搜尋完整編號、省略 NR／HR／KR 前綴的號碼、屋苑及目的地；巴士及居民巴士排在綠色小巴及車站前，另有居民巴士篩選。卡片開啟運輸署官方路線／時間表 PDF，明確標示不提供即時到站；不加入附近站、收藏或行程配對，不虛構站序或班次。部分路線限住戶／指定乘客，已批准名單不保證當天營運，仍須查閱官方文件及營辦商公告。
+
+更新目錄：`python scripts/build-resident-data.py`（需要 beautifulsoup4）。腳本讀取三區官方 HTML 表格，驗證各區資料量、必要路線及重複項目後，一次寫入 src/lib/resident-data.json；下載或解析失敗保留原快照。目錄隨程式打包及離線外殼快取，不會離線快取第三方 PDF。來源：
+- https://www.td.gov.hk/tc/transport_in_hong_kong/public_transport/non_franchised/list_of_approved_rs_hk/index.html
+- https://www.td.gov.hk/tc/transport_in_hong_kong/public_transport/non_franchised/list_of_approved_rs_kln/index.html
+- https://www.td.gov.hk/tc/transport_in_hong_kong/public_transport/non_franchised/list_of_approved_rs_nt/index.html
