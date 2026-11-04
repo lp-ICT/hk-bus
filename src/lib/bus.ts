@@ -7,6 +7,23 @@ const bases = { KMB: 'https://data.etabus.gov.hk/v1/transport/kmb', CTB: 'https:
 const memory = new Map<string, { at: number; value: unknown }>();
 const requests = new Map<string, Promise<unknown>>();
 
+async function fetchBusData(url: string, cache: boolean) {
+  for (let attempt = 0; ; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 18000);
+    try {
+      const target = attempt ? `${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}` : url;
+      const response = await fetch(target, { signal: controller.signal, cache: attempt || !cache ? 'no-store' : 'default' });
+      if (!response.ok) throw new Error('巴士公司暫時未能提供資料，請稍後重試。');
+      const json = await response.json();
+      if (!json || typeof json !== 'object' || !('data' in json)) throw new Error('收到的巴士資料不完整。');
+      return json;
+    } catch (error) {
+      if (attempt) throw error;
+    } finally { clearTimeout(timer); }
+  }
+}
+
 async function data<T>(url: string, cache = true): Promise<T> {
   const key = `bus-v1:${url}`;
   if (cache) {
@@ -19,10 +36,7 @@ async function data<T>(url: string, cache = true): Promise<T> {
     if (requests.has(url)) return requests.get(url) as Promise<T>;
   }
   const request = (async () => {
-    const response = await fetch(url, { signal: AbortSignal.timeout(18000), cache: cache ? 'default' : 'no-store' });
-    if (!response.ok) throw new Error('巴士公司暫時未能提供資料，請稍後重試。');
-    const json = await response.json();
-    if (!('data' in json)) throw new Error('收到的巴士資料不完整。');
+    const json = await fetchBusData(url, cache);
     if (cache) {
       if (typeof window !== 'undefined') memory.set(url, { at: Date.now(), value: json.data });
       try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), value: json.data })); } catch {}

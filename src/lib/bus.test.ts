@@ -4,6 +4,43 @@ const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 const route: Route = { company: 'KMB', route: '1', bound: 'O', service: '1', from: '竹園邨', to: '尖沙咀碼頭' };
 const stop = { id: 'STOP', seq: 3, name: '測試站', lat: 22.3, lng: 114.1 };
+test('transient network and HTTP failures retry once with a fresh URL', async () => {
+  for (const failure of ['network', 'http']) {
+    const calls: string[] = [];
+    globalThis.fetch = (async (url, options) => {
+      calls.push(String(url));
+      if (calls.length === 1) {
+        if (failure === 'network') throw new TypeError('Failed to fetch');
+        return new Response('', { status: 403 });
+      }
+      expect(options?.cache).toBe('no-store');
+      return new Response(JSON.stringify({ data: [] }));
+    }) as typeof fetch;
+    expect(await arrivalsFor(route, stop)).toEqual([]);
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).toStartWith(`${calls[0]}?retry=`);
+  }
+});
+test('persistent failure stops after two attempts', async () => {
+  let calls = 0;
+  globalThis.fetch = (async () => { calls++; throw new TypeError('Failed to fetch'); }) as unknown as typeof fetch;
+  await expect(arrivalsFor(route, stop)).rejects.toThrow();
+  expect(calls).toBe(2);
+});
+test('bus data loads on browsers without AbortSignal.timeout', async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(AbortSignal, 'timeout')!;
+  Object.defineProperty(AbortSignal, 'timeout', { ...descriptor, value: undefined });
+  let called = false;
+  globalThis.fetch = (async (_url, options) => {
+    called = true;
+    expect(options?.signal).toBeInstanceOf(AbortSignal);
+    return new Response(JSON.stringify({ data: [] }));
+  }) as typeof fetch;
+  try {
+    expect(await arrivalsFor(route, stop)).toEqual([]);
+    expect(called).toBe(true);
+  } finally { Object.defineProperty(AbortSignal, 'timeout', descriptor); }
+});
 test('ETA excludes opposite directions, repeated stop sequences, different service types and expired predictions', async () => {
   const future = new Date(Date.now() + 300000).toISOString();
   const row = { dir: 'O', seq: 3, service_type: 1, eta: future, eta_seq: 1, rmk_tc: '原定班次' };
