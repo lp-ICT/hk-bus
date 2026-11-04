@@ -108,6 +108,15 @@ export function currentPlace(): Promise<Place> {
   });
 }
 
+export function journeyLegs(journey: Journey): Journey[] {
+  return [journey, ...(journey.transfer ? journeyLegs(journey.transfer.leg) : [])];
+}
+
+export function planJourneys(routes: Route[], stops: Stop[], rows: RouteStop[], origin: Place, destination: Place, alightingIds?: string[]) {
+  const direct = directJourneys(routes, stops, rows, origin, destination, false, alightingIds);
+  return direct.length ? direct : transferJourneys(routes, stops, rows, origin, destination, alightingIds);
+}
+
 export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop[], origin: Place, destination: Place, alightingIds?: string[]): Journey[] {
   const stopMap = new Map(stops.map(stop => [stop.id, stop]));
   const routeMap = new Map(routes.filter(route => route.company !== 'CTB').map(route => [routeKey(route), route]));
@@ -121,42 +130,71 @@ export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop
   }
   const restricted = (stop: Stop) => /隧道轉車站|隧道收費廣場/.test(stop.name);
   const destinations = new Set(stops.filter(stop => alightingIds ? alightingIds.includes(stop.id) : !restricted(stop) && distance(destination.lat, destination.lng, stop) <= 400).map(stop => stop.id));
-  const cell = (lat: number, lng: number) => `${Math.floor(lat / 0.003)},${Math.floor(lng / 0.003)}`;
-  const boardings = new Map<string, { route: Route; stop: Stop; alight: Stop }[]>();
+  const identity = (route: Route) => `${route.company}-${route.route}-${route.company === 'GMB' ? route.region + '-' + route.service : ''}`;
+  const score = (journey: Journey): number => journey.endMeters + journeyLegs(journey).reduce((sum, leg) => sum + (leg.alight.seq - leg.stop.seq) * 80 + (leg.transfer?.meters || 0) * 3, 0);
+  let tails: Journey[] = [];
   for (const [key, ordered] of grouped) {
     ordered.sort((a, b) => a.seq - b.seq);
-    const alight = [...ordered].reverse().find(stop => stop.dropoff !== false && destinations.has(stop.id));
+    const alight = ordered.find(stop => stop.dropoff !== false && destinations.has(stop.id));
     if (!alight) continue;
     for (const stop of ordered) {
-      if (stop.pickup === false || stop.seq >= alight.seq || stop.id === alight.id) continue;
-      const bucket = cell(stop.lat, stop.lng);
-      if (!boardings.has(bucket)) boardings.set(bucket, []);
-      boardings.get(bucket)!.push({ route: routeMap.get(key)!, stop, alight });
+      const later = ordered.find(exit => exit.seq > stop.seq && exit.id !== stop.id && exit.dropoff !== false && destinations.has(exit.id));
+      if (stop.pickup === false || !later) continue;
+      tails.push({ route: routeMap.get(key)!, stop, alight: later, meters: 0, endMeters: distance(destination.lat, destination.lng, later), nearby: true });
     }
   }
-  const best = new Map<string, { journey: Journey; score: number }>();
-  for (const [key, ordered] of grouped) {
-    const route = routeMap.get(key)!;
-    const starts = ordered.filter(stop => stop.pickup !== false && !restricted(stop) && distance(origin.lat, origin.lng, stop) <= 1000);
-    for (const exit of ordered) {
-      if (exit.dropoff === false) continue;
-      const start = starts.filter(stop => stop.seq < exit.seq && stop.id !== exit.id).sort((a, b) => distance(origin.lat, origin.lng, a) - distance(origin.lat, origin.lng, b))[0];
-      if (!start) continue;
-      const x = Math.floor(exit.lat / 0.003), y = Math.floor(exit.lng / 0.003);
-      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
-        for (const second of boardings.get(`${x + dx},${y + dy}`) || []) {
-          if (route.company === second.route.company && route.route === second.route.route && (route.company !== 'GMB' || route.region === second.route.region)) continue;
-          const walk = distance(exit.lat, exit.lng, second.stop);
-          if (walk > 200 || (restricted(exit) || restricted(second.stop)) && exit.id !== second.stop.id) continue;
-          const meters = distance(origin.lat, origin.lng, start), endMeters = distance(destination.lat, destination.lng, second.alight);
-          const leg: Journey = { route: second.route, stop: second.stop, alight: second.alight, meters: walk, endMeters, nearby: true };
-          const journey: Journey = { route, stop: start, alight: exit, meters, endMeters, nearby: true, transfer: { leg, meters: walk } };
-          const score = meters + endMeters + walk * 3 + ((exit.seq - start.seq) + (second.alight.seq - second.stop.seq)) * 80;
-          const pair = `${route.company}-${route.route}-${route.bound}-${route.company === 'GMB' ? route.service : ''}/${second.route.company}-${second.route.route}-${second.route.bound}-${second.route.company === 'GMB' ? second.route.service : ''}`;
-          if (!best.has(pair) || score < best.get(pair)!.score) best.set(pair, { journey, score });
+  if (!stops.some(stop => !restricted(stop) && distance(origin.lat, origin.lng, stop) <= 1000)) return [];
+  for (let transfers = 1; transfers <= 2; transfers++) {
+    const buckets = new Map<string, Journey[]>();
+    for (const tail of tails) {
+      const cell = `${Math.floor(tail.stop.lat / 0.003)},${Math.floor(tail.stop.lng / 0.003)}`;
+      if (!buckets.has(cell)) buckets.set(cell, []);
+      buckets.get(cell)!.push(tail);
+    }
+    const next: Journey[] = [];
+    for (const [key, ordered] of grouped) {
+      const route = routeMap.get(key)!;
+      if (transfers === 2 && !ordered.some(stop => stop.pickup !== false && !restricted(stop) && distance(origin.lat, origin.lng, stop) <= 1000)) continue;
+      const exits = new Map<number, { leg: Journey; meters: number }[]>();
+      for (const exit of ordered) {
+        if (exit.dropoff === false) continue;
+        const x = Math.floor(exit.lat / 0.003), y = Math.floor(exit.lng / 0.003);
+        const matches: { leg: Journey; meters: number }[] = [];
+        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+          for (const tail of buckets.get(`${x + dx},${y + dy}`) || []) {
+            if (journeyLegs(tail).some(leg => identity(leg.route) === identity(route))) continue;
+            const walk = distance(exit.lat, exit.lng, tail.stop);
+            if (walk > 200 || (restricted(exit) || restricted(tail.stop)) && exit.id !== tail.stop.id) continue;
+            matches.push({ leg: tail, meters: walk });
+          }
         }
+        if (matches.length) exits.set(exit.seq, matches);
+      }
+      for (const stop of ordered) {
+        if (stop.pickup === false || transfers === 2 && (restricted(stop) || distance(origin.lat, origin.lng, stop) > 1000)) continue;
+        const best = new Map<string, Journey>();
+        for (const exit of ordered) {
+          if (exit.seq <= stop.seq || exit.id === stop.id) continue;
+          for (const transfer of exits.get(exit.seq) || []) {
+            const candidate: Journey = { route, stop, alight: exit, meters: 0, endMeters: transfer.leg.endMeters, nearby: true, transfer };
+            const path = journeyLegs(candidate).map(leg => routeKey(leg.route)).join('/');
+            if (!best.has(path) || score(candidate) < score(best.get(path)!)) best.set(path, candidate);
+          }
+        }
+        next.push(...best.values());
       }
     }
+    const reachable = new Map<string, Journey>();
+    for (const tail of next) {
+      const meters = distance(origin.lat, origin.lng, tail.stop);
+      if (restricted(tail.stop) || meters > 1000) continue;
+      const candidate = { ...tail, meters };
+      const key = journeyLegs(candidate).map(leg => routeKey(leg.route)).join('/');
+      const previous = reachable.get(key);
+      if (!previous || meters + score(candidate) < previous.meters + score(previous)) reachable.set(key, candidate);
+    }
+    if (reachable.size) return [...reachable.values()].sort((a, b) => a.meters + score(a) - b.meters - score(b)).slice(0, 12);
+    tails = next;
   }
-  return [...best.values()].sort((a, b) => a.score - b.score).slice(0, 12).map(value => value.journey);
+  return [];
 }

@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { directJourneys, transferJourneys, hkPlace, schoolPlace, schoolDestinationStops, type RouteStop } from './journey';
+import { directJourneys, transferJourneys, planJourneys, hkPlace, schoolPlace, schoolDestinationStops, type RouteStop } from './journey';
 import type { Route, Stop } from './bus';
 import { sortJourneys } from '../pages/journey-planner';
 
@@ -118,4 +118,40 @@ test('school destinations include local minibuses but exclude tunnel and distant
   const distant = { ...local, id: 'GMB:FAR', lat: schoolPlace.lat + 0.01 };
   const tunnel = { ...local, id: 'TUNNEL', name: '城門隧道轉車站' };
   expect(schoolDestinationStops([local, distant, tunnel])).toEqual(['GMB:SCHOOL']);
+});
+
+test('two transfers include walking links and preserve all three legs and stop restrictions', () => {
+  const points: Stop[] = Array.from({ length: 6 }, (_, i) => ({ id: 'P' + i, name: '站' + i, lat: 22.30 + Math.floor((i + 1) / 2) * 0.02, lng: 114.1 + (i % 2 ? 0.0001 : 0), seq: 0 }));
+  const services = ['A', 'B', 'C'].map(value => ({ ...route, route: value }));
+  const links = points.map((stop, i) => ({ route: services[Math.floor(i / 2)].route, bound: 'O', service_type: '1', stop: stop.id, seq: i % 2 + 1 }));
+  const origin = { ...points[0] }, destination = { ...points[5] };
+  const result = transferJourneys(services, points, links, origin, destination);
+  expect(result).toHaveLength(1);
+  expect(result[0].route.route).toBe('A');
+  expect(result[0].transfer?.leg.route.route).toBe('B');
+  expect(result[0].transfer?.leg.transfer?.leg.route.route).toBe('C');
+  expect(result[0].transfer!.meters).toBeGreaterThan(0);
+  expect(transferJourneys(services, points, links.map(row => ({ ...row, pickup: row.stop !== 'P2' })), origin, destination)).toHaveLength(0);
+  expect(transferJourneys(services, points, links, destination, origin)).toHaveLength(0);
+  expect(transferJourneys(services, points.map(stop => stop.id === 'P2' ? { ...stop, lat: stop.lat + 0.004 } : stop), links, origin, destination)).toHaveLength(0);
+});
+
+test('three transfers exceed the supported journey limit', () => {
+  const points: Stop[] = Array.from({ length: 8 }, (_, i) => ({ id: 'Q' + i, name: '站' + i, lat: 22.30 + Math.floor((i + 1) / 2) * 0.02, lng: 114.1, seq: 0 }));
+  const services = ['A', 'B', 'C', 'D'].map(value => ({ ...route, route: value }));
+  const links = points.map((stop, i) => ({ route: services[Math.floor(i / 2)].route, bound: 'O', service_type: '1', stop: stop.id, seq: i % 2 + 1 }));
+  expect(transferJourneys(services, points, links, points[0], points[7])).toHaveLength(0);
+});
+
+
+test('school journey planning does not let remote direct routes hide reachable transfer journeys', () => {
+  const second = { ...route, route: 'SECOND' };
+  const remote = { ...route, route: 'REMOTE' };
+  const far = { ...stops[0], id: 'FAR', lat: 22.2 };
+  const network = [...stops, far];
+  const links = [rows[0], rows[1], { ...rows[1], route: second.route, seq: 1 }, { ...rows[2], route: second.route, seq: 2 }, { ...rows[0], route: remote.route, stop: far.id }, { ...rows[2], route: remote.route }];
+  const result = planJourneys([route, second, remote], network, links, start, end, ['C']);
+  expect(result).toHaveLength(1);
+  expect(result[0].route.route).toBe('40X');
+  expect(result[0].transfer?.leg.route.route).toBe('SECOND');
 });

@@ -100,3 +100,10 @@ Leaflet 地圖標示查詢位置及各車站，點選車站同步選取及捲動
 - https://www.td.gov.hk/tc/transport_in_hong_kong/public_transport/non_franchised/list_of_approved_rs_hk/index.html
 - https://www.td.gov.hk/tc/transport_in_hong_kong/public_transport/non_franchised/list_of_approved_rs_kln/index.html
 - https://www.td.gov.hk/tc/transport_in_hong_kong/public_transport/non_franchised/list_of_approved_rs_nt/index.html
+
+
+## 統一行程搜尋（2026-11-04）
+
+搜尋路線、返學啦及放學啦的目的地搜尋共用 planJourneys：先找直達，再找一次轉車，再找兩次轉車（最多三程），顯示最少轉車次數的最多 12 個轉車方案，按第一程即時到站排序。只配對九巴／龍運及綠色小巴，不含城巴或居民巴士。返學啦有位置時只查起點附近的方案，避免其他地區的直達路線阻止轉車搜尋；沒有定位時保留所有直達到校路線及手動起點選項。到校落車站維持已核對學校站限制。放學啦保留原有車站及交通工具篩選，另可選「搜尋目的地」，以學校為固定起點。
+
+步行接駁顯示起點至上車站、轉車站之間及最後落車至目的地的直線估算；起點最多 1 公里、終點最多 400 米、每次轉車最多 200 米，不提供已驗證行人導航，隧道轉車只接受相同站 ID。保留站序、只上／落車限制及 312 補充站沒有 ETA 的限制。同一旅程不重複使用同一條路線。所有後續車程最多三班預報，明確標示為目前預報，不保證抵達後可銜接。配對在 Web Worker 執行，切換查詢或離開分頁會取消，30 秒逾時提示；計算不阻塞頁面。
