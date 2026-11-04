@@ -108,6 +108,21 @@ export function arrivalLabel(eta: string | null, now = Date.now()) {
   return minutes <= 1 ? '即將到站' : `${minutes} 分鐘`;
 }
 
+export function noArrivalMessage(arrivals: Arrival[]) {
+  const remarks = arrivals.filter(a => !a.eta).map(a => a.remark.trim()).filter(Boolean);
+  if (remarks.length && remarks.every(remark => /服務已結束|尾班車已過|已過尾班車|末班車已過/.test(remark))) return '服務已結束';
+  return remarks.find(remark => !/服務已結束|尾班車已過|已過尾班車|末班車已過/.test(remark)) || '暫未有到站預報';
+}
+
+export function distanceLabel(meters: number) {
+  return meters >= 1000 ? `距你約 ${(meters / 1000).toFixed(1)} 公里（直線）` : `距你約 ${Math.round(meters)} 米（直線）`;
+}
+
+export function schoolSideStops<T extends Stop>(stops: T[], side: 'entrance' | 'opposite') {
+  const ids = side === 'entrance' ? ['0A1DAEAFFDFF0B66', '97BB9CE7A058E809'] : ['DEDD6247441C8C05'];
+  return stops.filter(stop => ids.includes(stop.id));
+}
+
 export type NearbyArrival = Favourite & { meters: number; arrivals: Arrival[]; error: boolean };
 export async function nearbyArrivals(stop: Stop & { meters: number }, routes: Route[]): Promise<NearbyArrival[]> {
   const entries = await routesAtStop(stop.id, routes);
@@ -137,6 +152,6 @@ export function nearestRoutes(rows: NearbyArrival[]): NearbyArrival[] {
     const sameStop = group.filter(row => row.stop.id === nearest.stop.id && row.stop.seq === nearest.stop.seq);
     const arrivals = sameStop.flatMap(row => row.arrivals).filter(a => a.eta && Number.isFinite(Date.parse(a.eta)))
       .sort((a, b) => Date.parse(a.eta!) - Date.parse(b.eta!));
-    return { ...nearest, error: sameStop.every(row => row.error), arrivals: arrivals.filter((a, i) => i === 0 || a.eta !== arrivals[i - 1].eta).slice(0, 3) };
+    return { ...nearest, error: sameStop.some(row => row.error), arrivals: arrivals.length ? arrivals.filter((a, i) => i === 0 || a.eta !== arrivals[i - 1].eta).slice(0, 3) : sameStop.flatMap(row => row.arrivals).filter(a => !a.eta).slice(0, 3) };
   });
 }

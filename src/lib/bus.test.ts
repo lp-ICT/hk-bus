@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test';
-import { arrivalLabel, arrivalsFor, distance, nearbyArrivals, nearestRoutes, sortNearby, searchStops, routesAtStop, type Route } from './bus';
+import { schoolSideStops, noArrivalMessage, distanceLabel, arrivalLabel, arrivalsFor, distance, nearbyArrivals, nearestRoutes, sortNearby, searchStops, routesAtStop, type Route } from './bus';
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 const route: Route = { company: 'KMB', route: '1', bound: 'O', service: '1', from: '竹園邨', to: '尖沙咀碼頭' };
@@ -93,4 +93,29 @@ test('nearby groups use nearest stop per direction, merge services without dupli
   expect(result[0].stop.id).toBe(stop.id);
   expect(result[0].arrivals.map(a => a.seq)).toEqual([2, 5, 8]);
   expect(result[1].route.bound).toBe('I');
+});
+
+test('school entrance combines TW310 and TW311 and keeps the opposite stop separate', () => {
+  const entranceA = { ...stop, id: '0A1DAEAFFDFF0B66' };
+  const entranceB = { ...stop, id: '97BB9CE7A058E809' };
+  const opposite = { ...stop, id: 'DEDD6247441C8C05' };
+  const stops = [entranceA, opposite, entranceB, stop];
+  expect(schoolSideStops(stops, 'entrance')).toEqual([entranceA, entranceB]);
+  expect(schoolSideStops(stops, 'opposite')).toEqual([opposite]);
+});
+test('missing predictions do not imply that service has ended', () => {
+  expect(noArrivalMessage([])).toBe('暫未有到站預報');
+  expect(noArrivalMessage([{ eta: null, seq: 1, remark: '服務已結束' }])).toBe('服務已結束');
+  expect(noArrivalMessage([{ eta: null, seq: 1, remark: '原定班次' }])).toBe('原定班次');
+  expect(noArrivalMessage([{ eta: null, seq: 1, remark: '服務已結束' }, { eta: null, seq: 2, remark: '未有預報' }])).not.toBe('服務已結束');
+});
+test('distance clearly identifies approximate straight line metres and kilometres', () => {
+  expect(distanceLabel(210.2)).toBe('距你約 210 米（直線）');
+  expect(distanceLabel(1530)).toBe('距你約 1.5 公里（直線）');
+});
+test('route grouping retains explicit no-prediction remarks and marks partial service failures', () => {
+  const base = { route, stop, meters: 20, error: false, arrivals: [{ eta: null, seq: 1, remark: '服務已結束' }] };
+  expect(nearestRoutes([base])[0].arrivals[0].remark).toBe('服務已結束');
+  const result = nearestRoutes([base, { ...base, route: { ...route, service: '2' }, error: true, arrivals: [] }]);
+  expect(result[0].error).toBe(true);
 });

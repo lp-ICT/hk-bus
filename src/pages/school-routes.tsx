@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { allKmbStops, type Favourite, type Route, type Stop } from '../lib/bus';
+import { allKmbStops, schoolSideStops, type Favourite, type Route, type Stop } from '../lib/bus';
 import NearbyRoutes from './nearby-routes';
 
-export default function SchoolRoutes({ routes, loadingRoutes, onRefreshRoutes, onSelect }: { routes: Route[]; loadingRoutes: boolean; onRefreshRoutes: () => Promise<void>; onSelect: (value: Favourite) => void }) {
+export default function SchoolRoutes({ routes, loadingRoutes, onRefreshRoutes, onSelect, favourites, onToggleFavourite, position }: { favourites: Favourite[]; onToggleFavourite: (value: Favourite) => void; position: { lat: number; lng: number } | null; routes: Route[]; loadingRoutes: boolean; onRefreshRoutes: () => Promise<void>; onSelect: (value: Favourite) => void }) {
+  const [side, setSide] = useState<'entrance' | 'opposite'>('entrance');
   const [stops, setStops] = useState<(Stop & { meters: number })[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -31,9 +32,12 @@ export default function SchoolRoutes({ routes, loadingRoutes, onRefreshRoutes, o
   async function refresh() {
     await Promise.all([loadStops(), onRefreshRoutes()]);
   }
+  const sideStops = schoolSideStops(stops, side);
   return <section aria-label="李炳中學巴士到站">
+    <div className="filter-row school-sides" aria-label="選擇車站位置">{([{ id: 'entrance', label: '李炳中學門口' }, { id: 'opposite', label: '對面車站' }] as const).map(item => <button key={item.id} className={side === item.id ? 'chosen' : ''} aria-pressed={side === item.id} onClick={() => setSide(item.id)}>{item.label}</button>)}</div>
+    <p className="station-caption">可風中學 · {side === 'entrance' ? '門口兩個車站（TW310／TW311）' : '對面車站（TW496）'}</p>
     {error && <p role="alert" className="error-text">{error}</p>}
     {!stops.length && <><p className="section-label">可風中學巴士站 · 各方向</p>{busy && <p className="loading-message">正在載入可風中學車站…</p>}<button className="primary-button" disabled={busy || loadingRoutes} onClick={() => void refresh()}>立即更新</button></>}
-    {!!stops.length && <NearbyRoutes stationName="可風中學" stops={stops} routes={routes} loadingRoutes={loadingRoutes} onSelect={onSelect} onRefresh={refresh} locating={busy} startupDeadline={deadline.current} />}
+    {!!stops.length && <NearbyRoutes key={side} favourites={favourites} onToggleFavourite={onToggleFavourite} position={position} stationName={side === 'entrance' ? '李炳中學門口' : '對面車站'} stops={sideStops} routes={routes} loadingRoutes={loadingRoutes} onSelect={onSelect} onRefresh={refresh} locating={busy} startupDeadline={deadline.current} />}
   </section>;
 }
