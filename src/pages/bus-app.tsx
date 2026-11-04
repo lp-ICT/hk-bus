@@ -76,6 +76,10 @@ export default function BusApp() {
   const [favourites, setFavourites] = useState<Favourite[]>(readFavourites);
   const [notice, setNotice] = useState('');
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [deviceLocation, setDeviceLocation] = useState<{ lat: number; lng: number; accuracy: number; time: number } | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [gpsError, setGpsError] = useState('');
+  const [locationLandmark, setLocationLandmark] = useState('');
   const [nearby, setNearby] = useState<(Stop & { meters: number })[]>([]);
   const [nearBusy, setNearBusy] = useState(false);
   const [nearError, setNearError] = useState('');
@@ -149,21 +153,26 @@ export default function BusApp() {
     if (locationActive.current) return;
     locationActive.current = true;
     setNearBusy(true); setNearError('');
+    let latitude = NaN, longitude = NaN;
     try {
-      let latitude: number, longitude: number;
       if (manualSource.current) {
         latitude = manualSource.current.lat; longitude = manualSource.current.lng;
         setNearAccuracy(null);
       } else {
+        setGpsStatus('loading'); setGpsError('');
         if (!navigator.geolocation) throw new Error('這個瀏覽器不支援定位。');
         const fix = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }));
         latitude = fix.coords.latitude; longitude = fix.coords.longitude;
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('定位資料不完整');
         setNearAccuracy(fix.coords.accuracy);
+        setDeviceLocation({ lat: latitude, lng: longitude, accuracy: fix.coords.accuracy, time: fix.timestamp });
+        setGpsStatus('ready'); setLocationLandmark('');
       }
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('定位資料不完整');
       setPosition({ lat: latitude, lng: longitude });
       const stops = await allTransitStops();
       const closest = nearbyStops(stops, latitude, longitude);
+      if (!manualSource.current) setLocationLandmark(closest[0]?.name || '');
       locationReady.current = closest.length > 0;
       setNearby(closest);
       if (!closest.length) {
@@ -171,6 +180,10 @@ export default function BusApp() {
         setNearError('按瀏覽器回傳的位置，300 米內未找到可步行前往的車站。電腦定位可能偏離實際位置，請選擇你所在的地點再查詢，並非代表路線資料全部失效。');
       }
     } catch (error) {
+      if (!manualSource.current && (!Number.isFinite(latitude) || !Number.isFinite(longitude))) {
+        setGpsStatus('error');
+        setGpsError(typeof error === 'object' && error && 'code' in error && error.code === 1 ? '定位權限未開啟，請允許位置存取。' : '暫時未能取得裝置位置。');
+      }
       locationReady.current = false;
       setChoosePlace(true);
       setNearError(typeof error === 'object' && error && 'code' in error && error.code === 1 ? '定位權限未開啟。請在瀏覽器設定允許位置存取，或改用路線搜尋。' : '暫時未能取得位置或車站資料，請按「立即更新」重試，或改用路線搜尋。');
@@ -199,6 +212,7 @@ export default function BusApp() {
     {!online && <div className="offline-banner" role="status"><WifiOff size={16} />目前離線 · 到站預報需要網絡連線</div>}
     <main>
       <nav className="tab-bar" aria-label="主要功能">{([{ id: 'search', label: '搜尋路線', icon: Search }, { id: 'favourites', label: '我的收藏', icon: Star }, { id: 'nearby', label: '附近路線', icon: MapPin }, { id: 'school', label: '放學啦', icon: BusFront }, { id: 'toSchool', label: '返學啦', icon: BusFront }] as const).map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => changeTab(item.id)}><item.icon size={19} />{item.label}{item.id === 'favourites' && favourites.length > 0 && <span className="count">{favourites.length}</span>}</button>)}</nav>
+      <div className="current-location" role="status" aria-live="polite"><MapPin size={17} /><div><strong>目前裝置位置</strong>{gpsStatus === 'loading' && <span>正在取得定位…</span>}{gpsStatus === 'error' && <span>{gpsError}{deviceLocation ? ' 以下為上次成功定位，並非最新位置。' : ''}</span>}{deviceLocation && <><span>{locationLandmark ? `鄰近 ${locationLandmark} · ` : ''}緯度 {deviceLocation.lat.toFixed(5)}，經度 {deviceLocation.lng.toFixed(5)}</span><small>精確度約 {Math.round(deviceLocation.accuracy)} 米 · {new Date(deviceLocation.time).toLocaleTimeString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} 取得{deviceLocation.accuracy > 500 ? ' · 定位範圍較大' : ''}</small></>}{manualPlace && <span>路線查詢使用手動位置：{manualPlace.name}（並非裝置定位）</span>}</div></div>
       <ConnectionStatus />
       {route ? <section className="route-detail"><button className="back-button" onClick={() => { setRoute(null); setSelected(null); }}><ArrowLeft size={17} />返回路線</button><div className="detail-heading"><span className={`route-number ${route.company.toLowerCase()}`}>{route.route}</span><div><small>{companyName(route.company)}{route.company !== 'GMB' && route.service !== '1' ? ` · 特別班次 ${route.service}` : ''}</small><h2>往 {route.to}</h2><p>由 {route.from} 開出</p></div><button className="icon-button switch-button" aria-label="切換方向" disabled={!routes.some(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound)} onClick={() => { const reverse = routes.find(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound && r.service === route.service) || routes.find(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound); if (reverse) { setRoute(reverse); setSelected(null); } }}><ArrowDownUp size={21} /></button></div><div className="section-label"><span>選擇上車站</span><span>{stops.length} 個車站</span></div>{stopLoading && <p className="loading-message"><RefreshCw size={17} className="spin" />正在載入車站…</p>}{stopError && <p className="error-text" role="alert">{stopError}</p>}{!stopLoading && !stopError && !stops.length && <p className="empty-message">這個方向暫時沒有車站資料，請切換方向。</p>}<div className="stop-list">{stops.map(stop => {
         const value = { route, stop }; const chosen = selected && favouriteKey(selected) === favouriteKey(value); const saved = favourites.some(f => favouriteKey(f) === favouriteKey(value));
