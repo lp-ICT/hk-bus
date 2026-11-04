@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { directJourneys, transferJourneys, hkPlace, schoolPlace, type RouteStop } from './journey';
+import { directJourneys, transferJourneys, hkPlace, schoolPlace, schoolDestinationStops, type RouteStop } from './journey';
 import type { Route, Stop } from './bus';
 import { sortJourneys } from '../pages/journey-planner';
 
@@ -111,4 +111,11 @@ test('transfers preserve direction and separate bus and minibus routes with iden
 test('journey matching never boards at drop-off-only stops or alights at pick-up-only stops', () => {
   expect(directJourneys([route], stops, rows.map(row => ({ ...row, pickup: row.stop !== 'A' })), start, end)).toHaveLength(0);
   expect(directJourneys([route], stops, rows.map(row => ({ ...row, dropoff: row.stop !== 'C' })), start, end)).toHaveLength(0);
+});
+
+test('school destinations include local minibuses but exclude tunnel and distant minibus stops', () => {
+  const local = { id: 'GMB:SCHOOL', name: '學校附近小巴站', lat: schoolPlace.lat, lng: schoolPlace.lng, seq: 0 };
+  const distant = { ...local, id: 'GMB:FAR', lat: schoolPlace.lat + 0.01 };
+  const tunnel = { ...local, id: 'TUNNEL', name: '城門隧道轉車站' };
+  expect(schoolDestinationStops([local, distant, tunnel])).toEqual(['GMB:SCHOOL']);
 });

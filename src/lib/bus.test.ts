@@ -200,3 +200,9 @@ test('minibus ETA uses route ID, direction and stop sequence and caps at three',
   globalThis.fetch = (async () => new Response(JSON.stringify({ data: { enabled: false, eta: [] } }))) as unknown as typeof fetch;
   expect((await arrivalsFor({ ...route, company: 'GMB', bound: '2', service: '2001234' }, stop))[0].remark).toContain('暫未提供');
 });
+
+test('school entrance minibus stop remains separate from opposite bus stop', () => {
+  const entrance = { id: 'GMB:20001848', name: '嗇色園可風中學外', lat: 22.38, lng: 114.135, seq: 0 };
+  expect(schoolSideStops([entrance], 'entrance')).toEqual([entrance]);
+  expect(schoolSideStops([entrance], 'opposite')).toEqual([]);
+});

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 const base = process.env.BASE_PATH || '/';
 const assets = (await readdir('dist/assets')).map(name => `${base}assets/${name}`);
 const metadata = (await readdir('dist/bus-data')).map(name => `${base}bus-data/${name}`);
-const files = ['/', '/share-qr.png', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png', ...assets, ...metadata].map(file => file.startsWith(base) ? file : `${base}${file.slice(1)}`);
+const files = ['/', '/share-qr.png', '/school-crest.png', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/maskable-512.png', '/icons/apple-touch-icon.png', ...assets, ...metadata].map(file => file.startsWith(base) ? file : `${base}${file.slice(1)}`);
 const version = createHash('sha256').update(JSON.stringify(files)).digest('hex').slice(0, 12);
 await Bun.write('dist/sw.js', `const CACHE = 'bus-shell-${version}';
 const FILES = ${JSON.stringify(files)};

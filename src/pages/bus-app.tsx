@@ -3,7 +3,8 @@ import { ArrowDownUp, ArrowLeft, ArrowRight, BusFront, ChevronRight, Clock3, Dow
 import { allTransitStops, distanceLabel, noArrivalMessage, arrivalLabel, arrivalsFor, companyName, distance, favouriteKey, routeKey, routesFor, stopsFor, type Arrival, type Company, type Favourite, type Route, type Stop } from '../lib/bus';
 
 import StopSearch from './stop-search';
-import JourneyPlanner from './journey-planner';
+import JourneyPlanner, { PlaceInput } from './journey-planner';
+import type { Place } from '../lib/journey';
 import NearbyRoutes from './nearby-routes';
 import PullRefresh from './pull-refresh';
 import SchoolRoutes from './school-routes';
@@ -78,6 +79,10 @@ export default function BusApp() {
   const [nearby, setNearby] = useState<(Stop & { meters: number })[]>([]);
   const [nearBusy, setNearBusy] = useState(false);
   const [nearError, setNearError] = useState('');
+  const [nearAccuracy, setNearAccuracy] = useState<number | null>(null);
+  const [manualPlace, setManualPlace] = useState<Place | null>(null);
+  const [choosePlace, setChoosePlace] = useState(false);
+  const manualSource = useRef<Place | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
   const [install, setInstall] = useState<InstallEvent | null>(null);
   const [showQr, setShowQr] = useState(false);
@@ -145,16 +150,29 @@ export default function BusApp() {
     locationActive.current = true;
     setNearBusy(true); setNearError('');
     try {
-      if (!navigator.geolocation) throw new Error('這個瀏覽器不支援定位。');
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 4500, maximumAge: 0 }));
-      const { latitude, longitude } = position.coords;
+      let latitude: number, longitude: number;
+      if (manualSource.current) {
+        latitude = manualSource.current.lat; longitude = manualSource.current.lng;
+        setNearAccuracy(null);
+      } else {
+        if (!navigator.geolocation) throw new Error('這個瀏覽器不支援定位。');
+        const fix = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }));
+        latitude = fix.coords.latitude; longitude = fix.coords.longitude;
+        setNearAccuracy(fix.coords.accuracy);
+      }
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('定位資料不完整');
       setPosition({ lat: latitude, lng: longitude });
       const stops = await allTransitStops();
       const closest = stops.map(stop => ({ ...stop, meters: distance(latitude, longitude, stop) })).filter(stop => stop.meters <= 1000).sort((a, b) => a.meters - b.meters).slice(0, 20);
-      locationReady.current = true;
+      locationReady.current = closest.length > 0;
       setNearby(closest);
-      if (!closest.length) setNearError('你附近 1 公里內沒有九巴／龍運或綠色小巴車站。可改用路線搜尋。');
+      if (!closest.length) {
+        setChoosePlace(true);
+        setNearError('按瀏覽器回傳的位置，1 公里內未找到車站。電腦定位可能偏離實際位置，請選擇你所在的地點再查詢，並非代表路線資料全部失效。');
+      }
     } catch (error) {
+      locationReady.current = false;
+      setChoosePlace(true);
       setNearError(typeof error === 'object' && error && 'code' in error && error.code === 1 ? '定位權限未開啟。請在瀏覽器設定允許位置存取，或改用路線搜尋。' : '暫時未能取得位置或車站資料，請按「立即更新」重試，或改用路線搜尋。');
     } finally { locationActive.current = false; setNearBusy(false); }
   }
@@ -177,7 +195,7 @@ export default function BusApp() {
   }
   return <div className="bus-app">
     <PullRefresh enabled={tab === 'nearby' && !route && !showInstall && !showQr} busy={nearBusy || loading} onRefresh={refreshNearby} />
-    <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><span className="brand-icon"><BusFront size={25} strokeWidth={2.2} /></span><span>就到站<span className="brand-en app-version">v{import.meta.env.VITE_APP_VERSION}</span></span></a><div className="header-actions"><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button><button className="install-button qr-button" aria-label="顯示網站 QR code" title="顯示網站 QR code" onClick={() => setShowQr(true)}><QrCode size={18} /><span>QR code</span></button></div></header>
+    <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><img className="school-crest" src={import.meta.env.BASE_URL + "school-crest.png"} alt="聖公會李炳中學校章" /><span>就到站<span className="brand-en app-version">v{import.meta.env.VITE_APP_VERSION}</span></span></a><div className="header-actions"><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button><button className="install-button qr-button" aria-label="顯示網站 QR code" title="顯示網站 QR code" onClick={() => setShowQr(true)}><QrCode size={18} /><span>QR code</span></button></div></header>
     {!online && <div className="offline-banner" role="status"><WifiOff size={16} />目前離線 · 到站預報需要網絡連線</div>}
     <main>
       <nav className="tab-bar" aria-label="主要功能">{([{ id: 'search', label: '搜尋路線', icon: Search }, { id: 'favourites', label: '我的收藏', icon: Star }, { id: 'nearby', label: '附近路線', icon: MapPin }, { id: 'school', label: '放學啦', icon: BusFront }, { id: 'toSchool', label: '返學啦', icon: BusFront }] as const).map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => changeTab(item.id)}><item.icon size={19} />{item.label}{item.id === 'favourites' && favourites.length > 0 && <span className="count">{favourites.length}</span>}</button>)}</nav>
@@ -193,7 +211,12 @@ export default function BusApp() {
         {tab === 'favourites' && <section><div className="section-label"><span>常用路線，隨手就睇</span><span>{favourites.length} 個收藏</span></div>{favourites.length ? <div className="favourite-list">{favourites.map(f => arrivalRow(f))}</div> : <div className="empty-state"><Star size={36} /><h2>把常搭的巴士，放在這裡。</h2><p>搜尋路線，按車站旁的星星加入收藏。<br />收藏指定方向及上車站，只保存在目前的裝置。</p><button className="primary-button" onClick={() => changeTab('search')}>搜尋路線 <ArrowRight size={17} /></button></div>}</section>}
         {tab === 'school' && routeError && <p role="alert" className="error-text">{routeError}</p>}
         {tab === 'school' && <SchoolRoutes favourites={favourites} onToggleFavourite={toggleFavourite} position={position} routes={routes} loadingRoutes={loading} onRefreshRoutes={loadRoutes} onSelect={value => { setRoute(value.route); setSelected(value); }} />}
-        {tab === 'nearby' && <section>{nearError && <p role="alert" className="error-text">{nearError}</p>}{nearBusy && <p className="loading-message"><RefreshCw size={17} className="spin" />正在查詢位置及車站資料…</p>}{nearby.length === 0 && <button className="primary-button" disabled={nearBusy || loading} onClick={() => void refreshNearby()}>立即更新</button>}{nearby.length > 0 && <NearbyRoutes favourites={favourites} onToggleFavourite={toggleFavourite} position={position} onRefresh={refreshNearby} locating={nearBusy} startupDeadline={startupDeadline.current} stops={nearby} routes={routes} loadingRoutes={loading} onSelect={value => { setRoute(value.route); setSelected(value); }} />}<p className="list-note">城巴請使用「搜尋路線」查詢車站及到站時間。</p></section>}
+        {tab === 'nearby' && <section>
+          {manualPlace && <p className="station-caption">附近位置：{manualPlace.name}（手動選擇）<button className="text-button" disabled={nearBusy} onClick={() => { manualSource.current = null; setManualPlace(null); void locate(); }}>使用裝置定位</button></p>}
+          {nearAccuracy !== null && <p className="station-caption">裝置定位精確度：約 {Math.round(nearAccuracy)} 米{nearAccuracy > 500 ? ' · 定位範圍較大，附近路線可能不準確' : ''}</p>}
+          {(!nearby.length || (nearAccuracy !== null && nearAccuracy > 500) || manualPlace) && !nearBusy && <button className="text-button" onClick={() => setChoosePlace(value => !value)}>{choosePlace ? '收起地點選擇' : '選擇附近位置'}</button>}
+          {choosePlace && !nearBusy && <PlaceInput label="附近地點" value={null} onChange={place => { if (place) { setManualPlace(place); manualSource.current = place; setChoosePlace(false); void locate(); } }} />}
+          {nearError && <p role="alert" className="error-text">{nearError}</p>}{nearBusy && <p className="loading-message"><RefreshCw size={17} className="spin" />正在查詢位置及車站資料…</p>}{nearby.length === 0 && <button className="primary-button" disabled={nearBusy || loading} onClick={() => void refreshNearby()}>立即更新</button>}{nearby.length > 0 && <NearbyRoutes favourites={favourites} onToggleFavourite={toggleFavourite} position={position} onRefresh={refreshNearby} locating={nearBusy} startupDeadline={startupDeadline.current} stops={nearby} routes={routes} loadingRoutes={loading} onSelect={value => { setRoute(value.route); setSelected(value); }} />}<p className="list-note">城巴請使用「搜尋路線」查詢車站及到站時間。</p></section>}
       </>}
       <footer><span className="footer-brand"><BusFront size={17} /> 就到站</span><p>資料來自 <a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_21-etakmb" target="_blank" rel="noreferrer">九巴／龍運</a> 及 <a href="https://data.gov.hk/tc-data/dataset/ctb-eta-transport-realtime-eta" target="_blank" rel="noreferrer">城巴</a>、<a href="https://data.gov.hk/tc-data/dataset/hk-td-sm_7-real-time-arrival-data-of-gmb" target="_blank" rel="noreferrer">綠色小巴</a> 開放數據。<br />非官方應用程式 · 到站時間以巴士公司資料為準</p><span className="footer-note"><Clock3 size={13} /> 香港時間 UTC+8</span></footer>
     </main>

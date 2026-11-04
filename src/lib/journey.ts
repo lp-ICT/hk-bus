@@ -11,6 +11,9 @@ export function hkPlace(name: string, x: number, y: number, detail?: string): Pl
 }
 export const schoolPlace = hkPlace('聖公會李炳中學', 831919, 826830, '荃灣區 · 和宜合道450號');
 export const schoolStopIds = ['0A1DAEAFFDFF0B66', '97BB9CE7A058E809', 'DEDD6247441C8C05'];
+export function schoolDestinationStops(stops: Stop[]) {
+  return stops.filter(stop => schoolStopIds.includes(stop.id) || stop.id.startsWith('GMB:') && distance(schoolPlace.lat, schoolPlace.lng, stop) <= 400).map(stop => stop.id);
+}
 
 export async function searchPlaces(query: string, signal?: AbortSignal): Promise<Place[]> {
   const term = query.trim();

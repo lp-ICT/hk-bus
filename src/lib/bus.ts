@@ -193,7 +193,7 @@ export function distanceLabel(meters: number) {
 }
 
 export function schoolSideStops<T extends Stop>(stops: T[], side: 'entrance' | 'opposite') {
-  const ids = side === 'entrance' ? ['0A1DAEAFFDFF0B66', '97BB9CE7A058E809'] : ['DEDD6247441C8C05'];
+  const ids = side === 'entrance' ? ['0A1DAEAFFDFF0B66', '97BB9CE7A058E809', 'GMB:20001848'] : ['DEDD6247441C8C05'];
   return stops.filter(stop => ids.includes(stop.id));
 }
 

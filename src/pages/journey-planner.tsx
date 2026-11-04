@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { MapPin, Search, Star } from 'lucide-react';
 import { arrivalLabel, arrivalsFor, companyName, routeDescription, favouriteKey, noArrivalMessage, routeKey, type Arrival, type Favourite, type Route } from '../lib/bus';
-import { currentPlace, directJourneys, transferJourneys, journeyGraph, schoolPlace, schoolStopIds, searchPlaces, type Journey, type Place } from '../lib/journey';
+import { currentPlace, directJourneys, transferJourneys, journeyGraph, schoolPlace, schoolDestinationStops, searchPlaces, type Journey, type Place } from '../lib/journey';
 
-function PlaceInput({ label, value, onChange }: { label: string; value: Place | null; onChange: (place: Place | null) => void }) {
+export function PlaceInput({ label, value, onChange }: { label: string; value: Place | null; onChange: (place: Place | null) => void }) {
   const [text, setText] = useState(value?.name || '');
   const [matches, setMatches] = useState<Place[]>([]);
   const [busy, setBusy] = useState(false);
@@ -112,7 +112,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
       </div>;
     })}
     {!journeys.length && <p className="empty-message">{school ? '未找到可到學校附近的直達路線。' : '指定範圍內未找到直達或轉一次車的方案，請改選起點或目的地。'}</p>}
-    <p className="list-note">{school ? '附近出發指上車站距起點 1 公里內；其餘路線另列下方。落車站為可風中學門口或對面車站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。最快到站不代表最快抵達目的地。</p>
+    <p className="list-note">{school ? '附近出發指上車站距起點 1 公里內；其餘路線另列下方。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。最快到站不代表最快抵達目的地。</p>
   </div>;
 }
 
@@ -149,8 +149,9 @@ export default function JourneyPlanner({ school = false, routes, loadingRoutes, 
       if (!school && !start) throw new Error('請先尋找並選擇起點。');
       if (!routes.some(route => route.company === 'KMB')) throw new Error('九巴／龍運路線資料未能載入，請稍後重試。');
       const graph = await journeyGraph();
-      let result = directJourneys(routes, graph.stops, graph.rows, start, destination, school, school ? schoolStopIds : undefined);
-      if (!result.length && start) result = transferJourneys(routes, graph.stops, graph.rows, start, destination, school ? schoolStopIds : undefined);
+      const destinationIds = school ? schoolDestinationStops(graph.stops) : undefined;
+      let result = directJourneys(routes, graph.stops, graph.rows, start, destination, school, destinationIds);
+      if (!result.length && start) result = transferJourneys(routes, graph.stops, graph.rows, start, destination, destinationIds);
       if (mounted.current && id === requestId.current) {
         setJourneys(result); setSnapshot(graph.snapshotAt); setSearched(true);
       }
@@ -170,7 +171,7 @@ export default function JourneyPlanner({ school = false, routes, loadingRoutes, 
       {!useGps && <PlaceInput label="起點" value={origin} onChange={value => { setOrigin(value); clearResults(); }} />}
       {school ? <p className="school-destination">目的地：聖公會李炳中學</p> : <PlaceInput label="目的地" value={destination} onChange={value => { setDestination(value); clearResults(); }} />}
       <button className="primary-button" disabled={busy || loadingRoutes} onClick={() => { if (school) setRevision(value => value + 1); else void find(true); }}><Search size={16} />{busy ? '正在搜尋…' : '搜尋路線及轉車方案'}</button>
-      <p className="list-note">配對九巴／龍運及綠色小巴；少量未有座標的小巴站不參與位置配對。沒有直達路線時顯示轉一次車的方案，最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按最快到上車站排序。</p>
+      <p className="list-note">配對九巴／龍運及綠色小巴；沒有直達路線時顯示轉一次車的方案，最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按最快到上車站排序。</p>
     </div>
     {error && <p className="data-warning" role="alert">{error}<button className="text-button" disabled={busy || loadingRoutes} onClick={() => void find(true)}>重試</button></p>}
     {loadingRoutes && <p className="loading-message">正在載入路線資料…</p>}
