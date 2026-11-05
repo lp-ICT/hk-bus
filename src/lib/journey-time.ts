@@ -20,6 +20,7 @@ export function withJourneyTimes(journey: Journey, times?: JourneyTimes): Journe
 export function estimateJourney(journey: TimedJourney, now: number): JourneyEstimate {
   const result: JourneyEstimate = { walking: 0, waiting: 0, riding: 0, legs: [] };
   const fail = (reason: string) => ({ ...result, reason });
+  if (journey.route.company === 'RESIDENT') return fail('居民巴士未有即時預報，請核對官方時間表及服務時段');
   if (!Number.isFinite(journey.meters)) return fail('請先選擇起點或允許定位');
   if (!journey.updated) return fail('正在取得到站資料');
   if (journey.error || now - journey.updated > 90000) return fail('到站資料過期或更新失敗');
@@ -28,6 +29,7 @@ export function estimateJourney(journey: TimedJourney, now: number): JourneyEsti
   let index = 0;
   const walkMinutes = (meters: number) => meters * 1.3 / 75;
   while (leg) {
+    if (leg.route.company === 'RESIDENT') return fail('第' + (index + 1) + '程為居民巴士，請核對官方時間表及服務時段');
     if (!Number.isFinite(leg.rideMinutes) || leg.rideMinutes! <= 0) return fail('第' + (index + 1) + '程未有可配對的參考車程');
     const walking = walkMinutes(index === 0 ? journey.meters : leg.meters);
     if (!Number.isFinite(walking) || walking < 0) return fail('步行距離資料不足');

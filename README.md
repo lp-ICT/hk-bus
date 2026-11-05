@@ -178,3 +178,16 @@ src/lib/mtr.ts 直接查詢 Next Train，15 秒連線逾時及一次重試，以
 官方來源：
 - https://portal.csdi.gov.hk/geoportal/?lang=zh-hk&datasetId=td_rcd_1638844988873_41214
 - https://portal.csdi.gov.hk/geoportal/?lang=zh-hk&datasetId=td_rcd_1697082463580_57453
+
+
+## 循環線配對及居民巴士站序（2026-11-05）
+
+此節取代上文「居民巴士僅目錄」及行車線逐站最近點的舊限制。地圖以所有車站的候選路段作整體順序配對，保留多個可能位置，選擇整體符合站序且偏差最小的路徑。首尾車站分別錨定行車線起終點 180 米內，逐站距線仍限 180 米；不因單站較接近回程路段便跳過去。適用所有巴士／小巴路線，沒有硬編碼 235 例外。已用官方 235、273、31M、238M、47X 核對；沒有官方路線、車站缺漏或不符仍只顯示站牌。
+
+scripts/build-resident-network.py 從運輸署 JSON_BUS.json 收錄 PI（珀麗灣客運）及 DB（愉景灣巴士）的完整站序，快照目前共 31 個方向、68 個車站。包括 NR330、NR331、NR331S、NR332（一般及通宵分開）、NR334、NR338／NR338S 及資料中列出的愉景灣路線。路線 ID、方向、只准上車／落車限制及官方 PDF 連結均保留，source cache 限 24 小時，必要方向或座標缺漏中止建置，原子寫入 public/bus-data/resident-network.json，再隨建置複製至 dist。不是全港所有居民巴士的完整車站資料；其餘已獲批准路線繼續保留原來 255 項目錄中的官方文件入口。
+
+Company=RESIDENT，service 為運輸署 routeId，bound 保留 routeSeq，站 ID 使用 RESIDENT:PI／DB 前綴。已收錄路線可查各方向車站、地圖站牌、官方時間表、收藏指定站、300 米附近路線，並參與三個起點／目的地搜尋的最多兩次轉車配對及港鐵混合方案；不同服務 ID 不混合。完整站序路線與原目錄不重複顯示。收藏只在本機保存。
+
+居民巴士未接入可靠即時 ETA；arrivalsFor 在本地回傳明確無預報提示，不向九巴／城巴查詢，也不從時間表推算實時到站。所有含居民巴士的行程標示需核對官方時間表及服務時段，不估算抵達時間、不宣稱當下有班次。時間表按鈕開啟運輸署官方路線／服務時段 PDF，而非已解析的逐班時刻。居民巴士尚無已核對的道路軌跡，地圖只顯示站牌，缺線提示照常顯示。居民巴士快照臨時載入失敗不阻止原有巴士／小巴／港鐵行程搜尋。
+
+來源：https://static.data.gov.hk/td/routes-fares-geojson/JSON_BUS.json 。官方欄位規格：https://static.data.gov.hk/td/routes-fares-geojson/dataspec/ptroutefare_geojson_dataspec.pdf 。NR330／NR332 官方 PDF 已確認可讀取。

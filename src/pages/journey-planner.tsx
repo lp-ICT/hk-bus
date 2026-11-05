@@ -117,7 +117,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
       const stale = !!row.updated && (row.error || now - row.updated > 90000);
       return <div key={journeyKey(row)}>
         <h3 className="journey-group">{row.transfer ? '轉車方案' : '直達方案 · 毋須轉車'}</h3>
-        <div className="journey-estimate" aria-label="預計抵達目的地">
+        <div className="journey-estimate" aria-label="預計抵達目的地">{journeyLegs(row).some(leg => leg.route.company === 'RESIDENT') && <p className="data-warning">此方案含居民巴士，未確認目前有班次；請先查看各程官方時間表。</p>}
           {prioritiseFavourites && matchesSavedJourney(row, favourites, school) && <strong>★ 已收藏</strong>}
           <strong>{estimate.arrival !== undefined ? '預計抵達約 ' + estimateClock(estimate.arrival) : '預計抵達：未能估算'}</strong>
           <span>{estimate.arrival !== undefined ? '全程約 ' + Math.ceil((estimate.arrival - now) / 60000) + ' 分鐘' : estimate.reason}</span>
@@ -226,7 +226,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
         <p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p>
       </div>
       <button className="primary-button" disabled={busy || loadingRoutes} onClick={() => { if (school) setRevision(value => value + 1); else void find(true); }}><Search size={16} />{busy ? '正在搜尋…' : '搜尋路線及轉車方案'}</button>
-      <p className="list-note">配對九巴／龍運、綠色小巴及港鐵；比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p>
+      <p className="list-note">配對九巴／龍運、綠色小巴、港鐵及已收錄居民巴士；居民巴士未有即時預報，請核對官方時間表及服務時段。比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p>
     </div>
     {error && <p className="data-warning" role="alert">{error}<button className="text-button" disabled={busy || loadingRoutes} onClick={() => void find(true)}>重試</button></p>}
     {loadingRoutes && <p className="loading-message">正在載入路線資料…</p>}

@@ -40,5 +40,9 @@ for (const [name, url] of Object.entries(sources)) {
   if (!saved) throw new Error(`Missing metadata: ${name}`);
 }
 
+const residentBuild = Bun.spawnSync(['python', 'scripts/build-resident-network.py'], { stdout: 'inherit', stderr: 'inherit' });
+if (residentBuild.exitCode !== 0) throw new Error('Cannot build official resident bus network');
+await Bun.write('dist/bus-data/resident-network.json', Bun.file('public/bus-data/resident-network.json'));
+
 const timeBuild = Bun.spawnSync(['python', 'scripts/build-journey-times.py'], { stdout: 'inherit', stderr: 'inherit' });
 if (timeBuild.exitCode !== 0) throw new Error('Cannot build official journey time reference');

@@ -16,24 +16,39 @@ export function matchRouteGeometry(features: RouteFeature[], route: Route, stops
     const first = points[0], last = points[points.length - 1];
     const ends = distance(first[0], first[1], stops[0]) + distance(last[0], last[1], stops[stops.length - 1]);
     if (distance(first[0], first[1], stops[0]) > 180 || distance(last[0], last[1], stops[stops.length - 1]) > 180) continue;
-    let previous = 0, score = ends, valid = true;
-    for (const stop of stops) {
-      let closest = Infinity, along = previous, traveled = 0;
-      for (const line of lines) for (let i = 1; i < line.length; i++) {
-        const a = line[i - 1], b = line[i];
-        const scale = Math.cos(stop.lat * Math.PI / 180);
+    let lengthSoFar = 0;
+    const segments = lines.flatMap(line => line.slice(1).map((b, i) => {
+      const a = line[i], length = distance(a[0], a[1], { lat: b[0], lng: b[1] });
+      const segment = { a, b, start: lengthSoFar, length };
+      lengthSoFar += length;
+      return segment;
+    }));
+    let states: { at: number; score: number }[] = [{ at: 0, score: ends }];
+    for (let index = 0; index < stops.length; index++) {
+      const stop = stops[index];
+      const scale = Math.cos(stop.lat * Math.PI / 180);
+      const candidates = segments.flatMap(({ a, b, start, length }) => {
         const ax = (a[1] - stop.lng) * scale * 111195, ay = (a[0] - stop.lat) * 111195;
         const dx = (b[1] - a[1]) * scale * 111195, dy = (b[0] - a[0]) * 111195;
-        const length = Math.hypot(dx, dy);
-        const t = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (length * length || 1)));
-        const at = traveled + t * length;
-        const meters = Math.hypot(ax + t * dx, ay + t * dy);
-        if (at >= previous - 30 && meters < closest) { closest = meters; along = at; }
-        traveled += length;
+        const denominator = dx * dx + dy * dy;
+        const t = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (denominator || 1)));
+        const at = start + t * length, meters = Math.hypot(ax + t * dx, ay + t * dy);
+        if (meters > 180 || index === 0 && at > 180 || index === stops.length - 1 && at < lengthSoFar - 180) return [];
+        return [{ at, score: meters * meters }];
+      }).sort((a, b) => a.at - b.at);
+      let previousIndex = 0, bestPrevious = Infinity;
+      const next: typeof states = [];
+      for (const candidate of candidates) {
+        while (previousIndex < states.length && states[previousIndex].at <= candidate.at + 30) {
+          bestPrevious = Math.min(bestPrevious, states[previousIndex++].score);
+        }
+        if (Number.isFinite(bestPrevious)) next.push({ at: candidate.at, score: bestPrevious + candidate.score });
       }
-      if (closest > 180) { valid = false; break; }
-      previous = Math.max(previous, along); score += closest;
+      states = next;
+      if (!states.length) break;
     }
+    const score = Math.min(...states.map(state => state.score));
+    const valid = Number.isFinite(score);
     if (valid && (!best || score < best.score)) best = { lines, score };
   }
   return best?.lines || null;

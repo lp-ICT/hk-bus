@@ -24,3 +24,24 @@ test('invalid official coordinate systems are rejected', () => {
   const invalid = feature(); invalid.geometry.coordinates = [[830000, 820000], [830010, 820010]];
   expect(matchRouteGeometry([invalid], route, stops)).toBeNull();
 });
+
+test('all circular and repeated-road routes consider the whole stop sequence instead of jumping to the closest return segment', () => {
+  const a = { ...stops[0], lat: 22.30, lng: 114.1 };
+  const b = { ...stops[1], lat: 22.31, lng: 114.1 };
+  const c = { ...stops[2], lat: 22.32, lng: 114.1 };
+  const d = { ...b, id: '4', seq: 4, lng: 114.10005 };
+  const end = { ...a, seq: 5 };
+  const line = feature([a, b, c, d, end]);
+  const actual = [a, { ...b, lng: d.lng }, c, d, end];
+  for (const name of ['235', '31M', 'circular-example']) {
+    expect(matchRouteGeometry([line], { ...route, route: name }, actual)).not.toBeNull();
+  }
+  expect(matchRouteGeometry([line], route, [a, { ...b, lng: 114.2 }, c, d, end])).toBeNull();
+});
+
+test('the initial and final occurrence of a shared terminal are anchored to the ends of the line', () => {
+  const a = stops[0], b = stops[1], c = { ...stops[2], lng: 114.11 };
+  const loop = [a, b, c, { ...a, seq: 4 }];
+  expect(matchRouteGeometry([feature(loop)], route, loop)).not.toBeNull();
+  expect(matchRouteGeometry([feature(loop)], route, [b, c])).toBeNull();
+});

@@ -1,8 +1,9 @@
+import { residentNetwork, residentRouteStops } from './resident-network';
 import { mtrNetwork, mtrRouteStops, mtrEntries, mtrArrivals } from './mtr';
 import { connectionReason, reportConnection } from './connection';
 
-export type Company = 'KMB' | 'CTB' | 'GMB' | 'MTR';
-export type Route = { company: Company; route: string; bound: string; service: string; from: string; to: string; region?: string; description?: string };
+export type Company = 'KMB' | 'CTB' | 'GMB' | 'MTR' | 'RESIDENT';
+export type Route = { company: Company; route: string; bound: string; service: string; from: string; to: string; region?: string; description?: string; timetableUrl?: string; journeyMinutes?: number };
 export type Stop = { id: string; name: string; lat: number; lng: number; seq: number; pickup?: boolean; dropoff?: boolean; etaAvailable?: boolean };
 export type Favourite = { route: Route; stop: Stop };
 export type Arrival = { eta: string | null; remark: string; seq: number; destinationStopId?: string };
@@ -88,9 +89,10 @@ export async function data<T>(url: string, cache = true): Promise<T> {
 
 export function routeKey(r: Route) { return `${r.company}-${r.route}-${r.bound}-${r.service}`; }
 export function favouriteKey(f: Favourite) { return `${routeKey(f.route)}-${f.stop.id}-${f.stop.seq}`; }
-export function companyName(c: Company) { return c === 'MTR' ? '港鐵' : c === 'KMB' ? '九巴 / 龍運' : c === 'GMB' ? '綠色小巴' : '城巴'; }
+export function companyName(c: Company) { return c === 'RESIDENT' ? '居民巴士' : c === 'MTR' ? '港鐵' : c === 'KMB' ? '九巴 / 龍運' : c === 'GMB' ? '綠色小巴' : '城巴'; }
 type Raw = Record<string, string | number>;
 export async function routesFor(company: Company): Promise<Route[]> {
+  if (company === 'RESIDENT') return (await residentNetwork()).routes;
   if (company === 'MTR') return (await mtrNetwork()).routes;
   if (company === 'GMB') return (await gmbNetwork()).routes;
   const rows = await data<Raw[]>(`${bases[company]}/route/${company === 'CTB' ? 'CTB' : ''}`);
@@ -115,6 +117,7 @@ export function searchStops(stops: Stop[], query: string): Stop[] {
 }
 
 export async function stopsFor(route: Route): Promise<Stop[]> {
+  if (route.company === 'RESIDENT') return residentRouteStops(await residentNetwork(), route);
   if (route.company === 'MTR') return mtrRouteStops(await mtrNetwork(), route);
   if (route.company === 'GMB') {
     const network = await gmbNetwork();
@@ -139,6 +142,7 @@ export async function stopsFor(route: Route): Promise<Stop[]> {
 }
 
 export async function arrivalsFor(route: Route, stop: Stop, alight?: Stop): Promise<Arrival[]> {
+  if (route.company === 'RESIDENT') return [{ eta: null, remark: '居民巴士未提供即時到站，請查看官方時間表', seq: 1 }];
   if (route.company === 'MTR') return mtrArrivals(route, stop, alight);
   if (stop.etaAvailable === false) return [{ eta: null, remark: '此分站未有官方即時預報', seq: 1 }];
   if (route.company === 'GMB') {
@@ -155,6 +159,10 @@ export async function arrivalsFor(route: Route, stop: Stop, alight?: Stop): Prom
 }
 
 export async function routesAtStop(id: string, routes: Route[]): Promise<Favourite[]> {
+  if (id.startsWith('RESIDENT:')) {
+    const network = await residentNetwork();
+    return routes.filter(route => route.company === 'RESIDENT').flatMap(route => residentRouteStops(network, route).filter(stop => stop.id === id && stop.pickup !== false).map(stop => ({ route, stop })));
+  }
   if (id.startsWith('MTR:')) return mtrEntries(await mtrNetwork(), id, routes);
   if (id.startsWith('GMB:')) {
     const network = await gmbNetwork();
@@ -206,7 +214,7 @@ export function schoolSideStops<T extends Stop>(stops: T[], side: 'entrance' | '
 export type NearbyArrival = Favourite & { meters: number; arrivals: Arrival[]; error: boolean };
 export async function nearbyArrivals(stop: Stop & { meters: number }, routes: Route[]): Promise<NearbyArrival[]> {
   const entries = await routesAtStop(stop.id, routes);
-  if (stop.id.startsWith('GMB:') || stop.id.startsWith('MTR:')) return Promise.all(entries.map(async entry => {
+  if (stop.id.startsWith('RESIDENT:') || stop.id.startsWith('GMB:') || stop.id.startsWith('MTR:')) return Promise.all(entries.map(async entry => {
     try { return { ...entry, meters: stop.meters, arrivals: await arrivalsFor(entry.route, entry.stop), error: false }; }
     catch { return { ...entry, meters: stop.meters, arrivals: [], error: true }; }
   }));
@@ -227,7 +235,7 @@ export function sortNearby(rows: NearbyArrival[], now = Date.now()) {
 export function nearestRoutes(rows: NearbyArrival[]): NearbyArrival[] {
   const groups = new Map<string, NearbyArrival[]>();
   for (const row of rows) {
-    const key = `${row.route.company}-${row.route.route}-${row.route.bound}${row.route.company === 'GMB' || row.route.company === 'MTR' ? '-' + row.route.service : ''}`;
+    const key = `${row.route.company}-${row.route.route}-${row.route.bound}${row.route.company === 'RESIDENT' || row.route.company === 'GMB' || row.route.company === 'MTR' ? '-' + row.route.service : ''}`;
     groups.set(key, [...(groups.get(key) || []), row]);
   }
   return [...groups.values()].map(group => {
@@ -273,11 +281,12 @@ export function gmbNetwork(): Promise<GmbNetwork> {
   return gmbRequest;
 }
 export async function allTransitStops(): Promise<Stop[]> {
-  const results = await Promise.allSettled([allKmbStops(), gmbNetwork().then(network => network.stops), mtrNetwork().then(network => network.stops)]);
+  const results = await Promise.allSettled([allKmbStops(), gmbNetwork().then(network => network.stops), mtrNetwork().then(network => network.stops), residentNetwork().then(network => network.stops)]);
   if (results.every(result => result.status === 'rejected')) throw new Error('車站資料未能載入');
   return results.flatMap(result => result.status === 'fulfilled' ? result.value : []);
 }
 export function routeDescription(route: Route) {
+  if (route.company === 'RESIDENT') return (route.region === 'PI' ? '珀麗灣客運' : '愉景灣巴士') + ' · ' + (route.description || '請確認服務時間');
   if (route.company === 'MTR') return '港鐵 · ' + route.region;
   if (route.company === 'GMB') return ({ HKI: '港島', KLN: '九龍', NT: '新界' }[route.region || ''] || '') + (route.description && route.description !== '正常班次' ? ' · ' + route.description : '');
   return route.service !== '1' ? '特別班次 ' + route.service : '';
@@ -285,5 +294,5 @@ export function routeDescription(route: Route) {
 
 export function nearbyStops(stops: Stop[], lat: number, lng: number): (Stop & { meters: number })[] {
   const within = stops.filter(stop => !/城門隧道.*轉車站|SHING MUN TUNNELS.*INTERCHANGE/i.test(stop.name)).map(stop => ({ ...stop, meters: distance(lat, lng, stop) })).filter(stop => stop.meters <= 300).sort((a, b) => a.meters - b.meters);
-  return [...within.filter(stop => !stop.id.startsWith('GMB:') && !stop.id.startsWith('MTR:')).slice(0, 20), ...within.filter(stop => stop.id.startsWith('GMB:')).slice(0, 20), ...within.filter(stop => stop.id.startsWith('MTR:')).slice(0, 10)];
+  return [...within.filter(stop => !stop.id.startsWith('GMB:') && !stop.id.startsWith('MTR:') && !stop.id.startsWith('RESIDENT:')).slice(0, 20), ...within.filter(stop => stop.id.startsWith('GMB:')).slice(0, 20), ...within.filter(stop => stop.id.startsWith('MTR:')).slice(0, 10), ...within.filter(stop => stop.id.startsWith('RESIDENT:')).slice(0, 20)];
 }
