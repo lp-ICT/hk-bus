@@ -17,6 +17,12 @@ export default function PullRefresh({ enabled, busy, onRefresh }: { enabled: boo
     const reset = () => { start = null; amount = 0; setPull(0); };
     const begin = (event: TouchEvent) => {
       if (event.touches.length !== 1 || window.scrollY > 0 || latest.current.busy || running) { reset(); return; }
+      if (event.target instanceof Element && event.target.closest('.leaflet-container, dialog, .modal-backdrop')) return;
+      let parent = event.target instanceof Element ? event.target : null;
+      while (parent && parent !== document.body) {
+        if (parent.scrollHeight > parent.clientHeight && parent.scrollTop > 0 && /auto|scroll/.test(getComputedStyle(parent).overflowY)) return;
+        parent = parent.parentElement;
+      }
       start = { x: event.touches[0].clientX, y: event.touches[0].clientY };
     };
     const move = (event: TouchEvent) => {
@@ -36,7 +42,7 @@ export default function PullRefresh({ enabled, busy, onRefresh }: { enabled: boo
       reset();
       if (!trigger) return;
       running = true; setRefreshing(true);
-      void latest.current.onRefresh().finally(() => { running = false; setRefreshing(false); });
+      void latest.current.onRefresh().catch(() => {}).finally(() => { running = false; setRefreshing(false); });
     };
     document.addEventListener('touchstart', begin, { passive: true });
     document.addEventListener('touchmove', move, { passive: false });
@@ -54,6 +60,6 @@ export default function PullRefresh({ enabled, busy, onRefresh }: { enabled: boo
   if (!enabled || (!pull && !refreshing)) return null;
   return <div className="pull-refresh-indicator" role="status" style={{ transform: `translate(-50%, ${refreshing ? 18 : pull / 3}px)` }}>
     {refreshing ? <RefreshCw size={18} className="spin" /> : <ArrowDown size={18} style={{ transform: pull >= 65 ? 'rotate(180deg)' : undefined }} />}
-    {refreshing ? '正在更新位置及巴士資料…' : pull >= 65 ? '放手立即更新' : '向下拉更新'}
+    {refreshing ? '正在更新位置及交通資料…' : pull >= 65 ? '放手立即更新' : '向下拉更新'}
   </div>;
 }

@@ -1,3 +1,4 @@
+import { usePageRefresh, refreshPageData } from '../lib/page-refresh';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownUp, ArrowLeft, ArrowRight, BusFront, ChevronRight, Clock3, Download, MapPin, Share2, RefreshCw, Search, Star, WifiOff, X } from 'lucide-react';
 import { allTransitStops, nearbyStops, distanceLabel, noArrivalMessage, arrivalLabel, arrivalsFor, companyName, distance, favouriteKey, routeKey, routesFor, stopsFor, type Arrival, type Company, type Favourite, type Route, type Stop } from '../lib/bus';
@@ -26,7 +27,8 @@ function EtaPanel({ selected, compact = false }: { selected: Favourite; compact?
   const [updated, setUpdated] = useState(0);
   const [busy, setBusy] = useState(true);
   const [now, setNow] = useState(Date.now());
-  const refreshAction = useRef<() => void>(() => {});
+  const refreshAction = useRef<() => Promise<void>>(async () => {});
+  usePageRefresh(() => refreshAction.current());
   useEffect(() => {
     let cancelled = false;
     let running = false;
@@ -45,7 +47,7 @@ function EtaPanel({ selected, compact = false }: { selected: Favourite; compact?
         if (!cancelled) setBusy(false);
       }
     }
-    refreshAction.current = () => { void refresh(); };
+    refreshAction.current = refresh;
     void refresh();
     const timer = setInterval(() => { setNow(Date.now()); if (Date.now() >= due && document.visibilityState === 'visible') void refresh(); }, 1000);
     const resume = () => { if (document.visibilityState === 'visible') void refresh(); };
@@ -97,6 +99,7 @@ export default function BusApp() {
   const [showQr, setShowQr] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const stopRequest = useRef(0);
+  const [refreshRevision, setRefreshRevision] = useState(0);
   const [showMap, setShowMap] = useState(true);
   const [showTimetable, setShowTimetable] = useState(false);
   const stopList = useRef<HTMLDivElement>(null);
@@ -149,7 +152,7 @@ export default function BusApp() {
     stopsFor(route).then(value => { if (id === stopRequest.current) { setStops(value); setLoadedRoute(routeKey(route)); } })
       .catch(() => { if (id === stopRequest.current) setStopError('未能載入車站，請重新選擇路線重試。'); })
       .finally(() => { if (id === stopRequest.current) setStopLoading(false); });
-  }, [route]);
+  }, [route, refreshRevision]);
 
   useEffect(() => { autoLocated.current = ''; setShowTimetable(false); }, [route]);
   useEffect(() => {
@@ -243,7 +246,7 @@ export default function BusApp() {
     </article>;
   }
   return <div className="bus-app">
-    <PullRefresh enabled={tab === 'nearby' && !route && !showInstall && !showQr} busy={nearBusy || loading} onRefresh={refreshNearby} />
+    <PullRefresh enabled={!showInstall && !showQr} busy={nearBusy || loading} onRefresh={async () => { await refreshNearby(); setRefreshRevision(value => value + 1); await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); await refreshPageData(); }} />
     <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><img className="school-crest" src={import.meta.env.BASE_URL + "school-crest.png"} alt="聖公會李炳中學校章" /><span>就到站<span className="brand-en app-version">v{import.meta.env.VITE_APP_VERSION}</span></span></a><div className="header-actions"><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button><button className="install-button qr-button" aria-label="分享網站" title="分享網站" onClick={() => setShowQr(true)}><Share2 size={18} /><span>分享</span></button></div></header>
     {!online && <div className="offline-banner" role="status"><WifiOff size={16} />目前離線 · 到站預報需要網絡連線</div>}
     <main>

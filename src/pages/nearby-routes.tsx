@@ -1,3 +1,4 @@
+import { usePageRefresh } from '../lib/page-refresh';
 import { useEffect, useRef, useState } from 'react';
 import { Star } from 'lucide-react';
 import { companyName, distance, distanceLabel, favouriteKey, noArrivalMessage, arrivalLabel, nearbyArrivals, nearestRoutes, sortNearby, type Favourite, type NearbyArrival, type Route, type Stop } from '../lib/bus';
@@ -11,6 +12,8 @@ export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect, o
   const [now, setNow] = useState(Date.now());
   const [next, setNext] = useState(0);
   const savedRef = useRef<Result[]>([]);
+  const refreshAction = useRef(async () => {});
+  usePageRefresh(() => refreshAction.current());
   useEffect(() => {
     let cancelled = false;
     let running = false;
@@ -54,6 +57,7 @@ export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect, o
         if (!cancelled) { due = Date.now() + (incomplete && Date.now() + 5000 <= startupDeadline ? 5000 : 30000); setNext(due); setBusy(false); }
       }
     }
+    refreshAction.current = refresh;
     void refresh();
     const timer = setInterval(() => {
       setNow(Date.now());
@@ -65,8 +69,9 @@ export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect, o
     return () => { cancelled = true; clearInterval(timer); window.removeEventListener('online', resume); document.removeEventListener('visibilitychange', resume); };
   }, [stops, routes, loadingRoutes, startupDeadline]);
   const display = sortNearby(rows.map(row => ({ ...row, arrivals: row.arrivals.filter(a => !a.eta || Date.parse(a.eta) > now - 60000) })), now) as Result[];
+  if (stationName) display.sort((a, b) => Number(favourites.some(f => favouriteKey(f) === favouriteKey(b))) - Number(favourites.some(f => favouriteKey(f) === favouriteKey(a))));
   return <div className="near-routes">
-    <div className="section-label"><span>{stationName ? `${stationName} · 最快到站優先` : '附近路線 · 最快到站優先'}</span><span>{busy ? '更新中…' : error && !rows.length ? '資料暫未能取得' : `${rows.length} 條路線及方向`}</span></div>
+    <div className="section-label"><span>{stationName ? `${stationName} · 收藏優先，其餘按到站時間` : '附近路線 · 收藏優先，其餘按到站時間'}</span><span>{busy ? '更新中…' : error && !rows.length ? '資料暫未能取得' : `${rows.length} 條路線及方向`}</span></div>
     <div className="nearby-refresh"><span role="timer">{busy || locating ? '正在更新資料…' : `下次更新：${Math.max(0, Math.ceil((next - now) / 1000))} 秒`}</span><button className="primary-button" disabled={busy || loadingRoutes || locating} onClick={() => void onRefresh()}>立即更新</button></div>
     {error && <p className="error-text" role="alert">{error}</p>}
     {!rows.length && busy && <p className="loading-message">正在查詢{stationName || '附近'}路線及即時到站時間…</p>}

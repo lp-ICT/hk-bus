@@ -65,3 +65,22 @@ test('reference times are bound to route, direction, service and interpolate sup
 test('clock display uses Hong Kong time including day rollover', () => {
   expect(estimateClock(Date.parse('2026-11-05T16:05:00Z'))).toBe('00:05');
 });
+
+
+test('school favourites pin matching direction and boarding stop while retaining arrival ranking', () => {
+  const fast = timed({ ...base, route: { ...base.route, route: '2' }, rideMinutes: 1 });
+  const savedSlow = timed({ ...base, rideMinutes: 30 });
+  const savedFast = timed({ ...base, rideMinutes: 10 });
+  expect(sortJourneys([fast, savedSlow, savedFast], now, [base])).toEqual([savedFast, savedSlow, fast]);
+  expect(sortJourneys([fast, savedSlow], now, [{ ...base, route: { ...base.route, bound: 'I' } }])).toEqual([fast, savedSlow]);
+  expect(sortJourneys([fast, savedSlow], now, [{ ...base, stop: { ...base.stop, id: 'elsewhere' } }])).toEqual([fast, savedSlow]);
+});
+
+test('a saved connecting leg pins the whole journey without changing general search defaults', () => {
+  const direct = timed({ ...base, rideMinutes: 1 });
+  const connection = { ...base, route: { ...base.route, route: '3' } };
+  const transfer = timed({ ...base, transfer: { leg: connection, meters: 0 } });
+  transfer.legArrivals = [[eta(5)], [eta(20)]];
+  expect(sortJourneys([direct, transfer], now, [connection])[0]).toBe(transfer);
+  expect(sortJourneys([direct, transfer], now)[0]).toBe(direct);
+});

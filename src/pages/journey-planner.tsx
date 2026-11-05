@@ -1,3 +1,4 @@
+import { usePageRefresh } from '../lib/page-refresh';
 import { useEffect, useRef, useState } from 'react';
 import { withJourneyTimes, estimateJourney, estimateClock, compareJourneyArrival, type TimedJourney } from '../lib/journey-time';
 import { MapPin, Search, Star } from 'lucide-react';
@@ -35,13 +36,14 @@ export function PlaceInput({ label, value, onChange }: { label: string; value: P
   </div>;
 }
 
-export function sortJourneys(rows: TimedJourney[], now: number) {
+export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favourite[] = []) {
   const first = (row: TimedJourney) => Math.min(...row.arrivals.filter(arrival => arrival.eta && Date.parse(arrival.eta) > now - 60000).map(arrival => Date.parse(arrival.eta!)));
-  return [...rows].sort((a, b) => compareJourneyArrival(a, b, now) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
+  const saved = (row: TimedJourney) => journeyLegs(row).some(leg => favourites.some(f => favouriteKey(f) === favouriteKey(leg)));
+  return [...rows].sort((a, b) => Number(saved(b)) - Number(saved(a)) || compareJourneyArrival(a, b, now) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
 }
 const journeyKey = (journey: Journey) => journeyLegs(journey).map(leg => routeKey(leg.route) + '-' + leg.stop.id + '-' + leg.stop.seq + '-' + leg.alight.id + '-' + leg.alight.seq).join('/');
 
-function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, onToggleFavourite, onSelect }: { journeys: Journey[]; school: boolean; refreshing: boolean; onRefresh: () => Promise<void>; favourites: Favourite[]; onToggleFavourite: (favourite: Favourite) => void; onSelect: (favourite: Favourite) => void }) {
+function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, onToggleFavourite, onSelect, prioritiseFavourites }: { prioritiseFavourites: boolean; journeys: Journey[]; school: boolean; refreshing: boolean; onRefresh: () => Promise<void>; favourites: Favourite[]; onToggleFavourite: (favourite: Favourite) => void; onSelect: (favourite: Favourite) => void }) {
   const [rows, setRows] = useState<TimedJourney[]>([]);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -93,9 +95,10 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
     window.addEventListener('online', resume); document.addEventListener('visibilitychange', resume);
     return () => { cancelled = true; clearInterval(timer); window.removeEventListener('online', resume); document.removeEventListener('visibilitychange', resume); };
   }, [journeys]);
-  const display = sortJourneys(rows, now);
+  const display = sortJourneys(rows, now, prioritiseFavourites ? favourites : []);
   return <div className="journey-results">
     <div className="nearby-refresh"><span role="timer">{busy || refreshing ? '正在更新資料…' : '下次更新：' + Math.max(0, Math.ceil((due - now) / 1000)) + ' 秒'}</span><button className="primary-button" disabled={busy || refreshing} onClick={() => void onRefresh()}>立即更新</button></div>
+    {prioritiseFavourites && <p className="station-caption">已收藏的路線優先，組內按預計抵達時間排序。</p>}
     {rows.some(row => row.error) && <p className="data-warning" role="alert">部分到站資料未能更新；有舊資料的路線會保留上次預報，請留意時間。</p>}
     {display.map((row, index) => {
       const saved = favourites.some(favourite => favouriteKey(favourite) === favouriteKey(row));
@@ -194,6 +197,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
   }, [school, loadingRoutes, routes, position, revision]);
   function clearResults() { requestId.current++; stopWorker.current?.(); setSearched(false); setJourneys([]); setBusy(false); setError(''); }
   async function refresh() { await find(useGps); }
+  usePageRefresh(async () => { if (!busy && (searched || school)) await find(false); });
   return <section aria-label={school ? '返學啦' : '起點及目的地搜尋'} className="journey-planner">
     {school && <h2 className="journey-heading">返學啦 · 聖公會李炳中學</h2>}
     <div className="journey-form">
@@ -208,7 +212,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
     {loadingRoutes && <p className="loading-message">正在載入路線資料…</p>}
     {busy && !searched && <p className="loading-message">正在配對上落車站…</p>}
     {searched && journeys.some(journey => journey.transfer) && <p className="data-warning">以下包括轉車候選方案（最多兩次）。按預計抵達目的地排序；轉車距離為直線估算，請確認行人通道。後續各程仍顯示車站目前預報；估算只選步行及前段車程後可接駁的預報，不能保證銜接。</p>}
-    {searched && <JourneyResults journeys={journeys} school={school} refreshing={busy} onRefresh={refresh} favourites={favourites} onToggleFavourite={onToggleFavourite} onSelect={onSelect} />}
+    {searched && <JourneyResults journeys={journeys} school={school} prioritiseFavourites={school || fromSchool} refreshing={busy} onRefresh={refresh} favourites={favourites} onToggleFavourite={onToggleFavourite} onSelect={onSelect} />}
     {snapshot && searched && <p className="list-note">路線及車站資料日期：{new Date(snapshot).toLocaleDateString('zh-HK', { timeZone: 'Asia/Hong_Kong' })} · 到站預報另行即時查詢</p>}
   </section>;
 }

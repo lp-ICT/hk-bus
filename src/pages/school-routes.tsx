@@ -1,3 +1,4 @@
+import { usePageRefresh } from '../lib/page-refresh';
 import { useEffect, useRef, useState } from 'react';
 import { allTransitStops, distance, schoolSideStops, type Favourite, type Route, type Stop } from '../lib/bus';
 import NearbyRoutes from './nearby-routes';
@@ -36,6 +37,7 @@ export default function SchoolRoutes({ routes, loadingRoutes, onRefreshRoutes, o
   async function refresh() {
     await Promise.all([loadStops(), onRefreshRoutes()]);
   }
+  usePageRefresh(loadStops);
   const sideStops = schoolSideStops(stops, side).filter(stop => mode === 'all' || (mode === 'minibus') === stop.id.startsWith('GMB:'));
   return <section aria-label="李炳中學巴士到站">
     <div className="filter-row" aria-label="放學搜尋方式"><button className={view === 'nearby' ? 'chosen' : ''} onClick={() => setView('nearby')}>學校附近路線</button><button className={view === 'destination' ? 'chosen' : ''} onClick={() => setView('destination')}>搜尋目的地</button></div>
