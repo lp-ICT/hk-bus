@@ -148,3 +148,25 @@ test('favourites win equal destination arrivals but never override a faster tran
   const equal = timed({ ...base, route: { ...base.route, route: '4' } });
   expect(sortJourneys([equal, timed()], now, [base])).toEqual([timed(), equal]);
 });
+
+test('rail station destinations put direct buses before second-leg rail and other transfers', () => {
+  const railLeg: Journey = { ...base, route: { ...base.route, company: 'MTR' } };
+  const direct = timed({ ...base, rideMinutes: 60 });
+  const railTransfer = timed({ ...base, transfer: { leg: railLeg, meters: 0 } });
+  const busTransfer = timed({ ...base, transfer: { leg: base, meters: 0 } });
+  expect(sortJourneys([busTransfer, railTransfer, direct], now, [], false, 'destination')).toEqual([direct, railTransfer, busTransfer]);
+});
+
+test('two rail endpoints prioritise entirely rail journeys including line changes', () => {
+  const railLeg: Journey = { ...base, route: { ...base.route, company: 'MTR' } };
+  const rail = timed({ ...railLeg, transfer: { leg: railLeg, meters: 0 } });
+  const mixed = timed({ ...base, transfer: { leg: railLeg, meters: 0 } });
+  const bus = timed();
+  expect(sortJourneys([bus, mixed, rail], now, [], false, 'both')[0]).toBe(rail);
+});
+
+test('arrival ordering remains active inside each rail priority group', () => {
+  const slow = timed({ ...base, rideMinutes: 60 });
+  const fast = timed({ ...base, rideMinutes: 5 });
+  expect(sortJourneys([slow, fast], now, [], false, 'destination')).toEqual([fast, slow]);
+});

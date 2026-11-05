@@ -35,8 +35,8 @@ export function PlaceInput({ label, value, onChange, onTextChange }: { label: st
     finally { if (!controller.signal.aborted) setBusy(false); }
   }
   return <div className="journey-place">
-    <label className="journey-field"><span>{label}</span><input aria-label={label + '位置'} value={text} placeholder="輸入地點、地址或車站名稱" onChange={event => { request.current?.abort(); setBusy(false); setText(event.target.value); onTextChange?.(event.target.value); setMatches([]); setError(''); onChange(null); }} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void lookup(); } }} /></label>
-    <button className="text-button" disabled={busy || !text.trim()} onClick={() => void lookup()}>{busy ? '正在查詢…' : '尋找' + label}</button>
+    <div className="place-lookup-row"><label className="journey-field"><span>{label}</span><input aria-label={label + '位置'} value={text} placeholder="輸入地點、地址或車站名稱" onChange={event => { request.current?.abort(); setBusy(false); setText(event.target.value); onTextChange?.(event.target.value); setMatches([]); setError(''); onChange(null); }} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void lookup(); } }} /></label>
+    <button className="place-lookup-button" disabled={busy || !text.trim()} onClick={() => void lookup()}>{busy ? '查詢中…' : '尋找' + label}</button></div>
     {value && <p className="place-selected">✓ 已選：{value.name}{value.detail ? ' · ' + value.detail : ''}</p>}
     {error && <p role="alert" className="error-text">{error}</p>}
     {!!matches.length && <div className="place-options" aria-label={label + '地點選擇'}>{(showAllPlaces ? matches : matches.slice(0, 6)).map((place, index) => <button key={place.name + index} onClick={() => { onChange(place); setText(place.name); setMatches([]); }}><strong>{place.name}</strong><small>{place.detail || '香港'}</small></button>)}</div>}
@@ -51,14 +51,25 @@ export function matchesSavedJourney(row: Journey, favourites: Favourite[], match
     : favouriteKey(f) === favouriteKey(leg)));
 }
 
-export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favourite[] = [], matchRouteDirection = false) {
+export type RailPriority = 'none' | 'destination' | 'both';
+export function railPriorityRank(row: Journey, priority: RailPriority) {
+  const legs = journeyLegs(row);
+  if (priority === 'both') return legs.every(leg => leg.route.company === 'MTR') ? 0 : 1;
+  if (priority === 'destination') {
+    if (legs.length === 1 && ['KMB', 'CTB', 'RESIDENT'].includes(row.route.company)) return 0;
+    if (legs[1]?.route.company === 'MTR') return 1;
+    return 2;
+  }
+  return 0;
+}
+export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favourite[] = [], matchRouteDirection = false, railPriority: RailPriority = 'none') {
   const first = (row: TimedJourney) => Math.min(...row.arrivals.filter(arrival => arrival.eta && Date.parse(arrival.eta) > now - 60000).map(arrival => Date.parse(arrival.eta!)));
   const saved = (row: TimedJourney) => matchesSavedJourney(row, favourites, matchRouteDirection);
-  return [...rows].sort((a, b) => compareJourneyArrival(a, b, now) || (estimateJourney(a, now).arrival === undefined && estimateJourney(b, now).arrival === undefined ? Number(!!a.transfer) - Number(!!b.transfer) : 0) || Number(saved(b)) - Number(saved(a)) || Number(!!a.transfer) - Number(!!b.transfer) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
+  return [...rows].sort((a, b) => railPriorityRank(a, railPriority) - railPriorityRank(b, railPriority) || compareJourneyArrival(a, b, now) || (estimateJourney(a, now).arrival === undefined && estimateJourney(b, now).arrival === undefined ? Number(!!a.transfer) - Number(!!b.transfer) : 0) || Number(saved(b)) - Number(saved(a)) || Number(!!a.transfer) - Number(!!b.transfer) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
 }
 const journeyKey = (journey: Journey) => journeyLegs(journey).map(leg => routeKey(leg.route) + '-' + leg.stop.id + '-' + leg.stop.seq + '-' + leg.alight.id + '-' + leg.alight.seq).join('/');
 
-function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, onToggleFavourite, onSelect, prioritiseFavourites }: { prioritiseFavourites: boolean; journeys: Journey[]; school: boolean; refreshing: boolean; onRefresh: () => Promise<void>; favourites: Favourite[]; onToggleFavourite: (favourite: Favourite) => void; onSelect: (favourite: Favourite) => void }) {
+function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, onToggleFavourite, onSelect, prioritiseFavourites, railPriority }: { railPriority: RailPriority; prioritiseFavourites: boolean; journeys: Journey[]; school: boolean; refreshing: boolean; onRefresh: () => Promise<void>; favourites: Favourite[]; onToggleFavourite: (favourite: Favourite) => void; onSelect: (favourite: Favourite) => void }) {
   const active = useScreenActive();
   const savedResults = useRef<{ journeys: Journey[]; rows: TimedJourney[] } | null>(null);
   const [rows, setRows] = useState<TimedJourney[]>([]);
@@ -118,10 +129,11 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
     window.addEventListener('online', resume);
     return () => { cancelled = true; controller.abort(); clearInterval(timer); window.removeEventListener('online', resume); };
   }, [journeys, active]);
-  const display = sortJourneys(rows, now, prioritiseFavourites ? favourites : [], school);
+  const display = sortJourneys(rows, now, prioritiseFavourites ? favourites : [], school, railPriority);
   return <div className="journey-results">
     <div className="nearby-refresh"><span role="timer">{busy || refreshing ? '正在更新資料…' : '下次更新：' + Math.max(0, Math.ceil((due - now) / 1000)) + ' 秒'}</span><button className="primary-button" disabled={busy || refreshing} onClick={() => void onRefresh()}>立即更新</button></div>
     {school ? <details className="journey-help"><summary>排序說明 ⓘ</summary><p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p></details> : <p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p>}
+    {railPriority !== 'none' && <p className="station-caption">{railPriority === 'both' ? '起點及目的地均為港鐵站：港鐵方案優先。' : '目的地為港鐵站：直達巴士優先，其次為第二程乘港鐵的方案。'}各組內按預計最快抵達排序。</p>}
     {rows.some(row => row.error) && <p className="data-warning" role="alert">部分到站資料未能更新；有舊資料的路線會保留上次預報，請留意時間。</p>}
     {display.map(row => {
       const saved = favourites.some(favourite => favouriteKey(favourite) === favouriteKey(row));
@@ -170,6 +182,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
   const [destinationText, setDestinationText] = useState('');
   const [destination, setDestination] = useState<Place | null>(school ? schoolPlace : null);
   const [journeys, setJourneys] = useState<Journey[]>([]);
+  const [railPriority, setRailPriority] = useState<RailPriority>('none');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
@@ -219,6 +232,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
         task.postMessage({ routes: selectedRoutes, stops: graph.stops, rows: graph.rows, origin: start, destination, alightingIds: destinationIds, preferredRoutes: school ? favourites.map(f => f.route) : [], times: graph.times });
       }) : directJourneys(selectedRoutes, graph.stops, graph.rows, null, destination, true, destinationIds).map(journey => withJourneyTimes(journey, graph.times));
       if (mounted.current && id === requestId.current) {
+        setRailPriority(destination.detail?.startsWith('港鐵站') ? start?.detail?.startsWith('港鐵站') ? 'both' : 'destination' : 'none');
         setJourneys(result); setSnapshot(graph.snapshotAt); setSearched(true);
       }
     } catch (error) {
@@ -259,7 +273,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
     {loadingRoutes && <p className="loading-message">正在載入路線資料…</p>}
     {busy && !searched && <p className="loading-message">正在配對上落車站…</p>}
     {searched && journeys.some(journey => journey.transfer) && <p className="data-warning">以下包括轉車候選方案（最多兩次）。按預計抵達目的地排序；轉車距離為直線估算，一般最多 200 米、涉及港鐵最多 400 米；中環／香港及尖沙咀／尖東另按已知站內連接處理。請確認行人通道。後續各程仍顯示車站目前預報；估算只選步行及前段車程後可接駁的預報，不能保證銜接。</p>}
-    {searched && <JourneyResults journeys={journeys} school={school} prioritiseFavourites={true} refreshing={busy} onRefresh={refresh} favourites={favourites} onToggleFavourite={onToggleFavourite} onSelect={onSelect} />}
+    {searched && <JourneyResults railPriority={railPriority} journeys={journeys} school={school} prioritiseFavourites={true} refreshing={busy} onRefresh={refresh} favourites={favourites} onToggleFavourite={onToggleFavourite} onSelect={onSelect} />}
     {snapshot && searched && <p className="list-note">路線及車站資料日期：{new Date(snapshot).toLocaleDateString('zh-HK', { timeZone: 'Asia/Hong_Kong' })} · 到站預報另行即時查詢</p>}
   </section>;
 }
