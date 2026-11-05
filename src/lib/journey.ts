@@ -40,10 +40,10 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
       .map(row => hkPlace(row.nameZH || row.nameEN, row.x, row.y, [row.districtZH, row.addressZH].filter(Boolean).join(' · ')))]);
   } catch (error) {
     if (signal?.aborted) throw error;
-    if (railPlaces.length) return railPlaces;
+    if (railPlaces.length) return organisePlaces(term, railPlaces);
     const stops = searchStops(await allKmbStops(), term).slice(0, 12);
     if (!stops.length) throw new Error('未能查詢地點，請重試或輸入巴士站名稱。');
-    return stops.map(stop => ({ ...stop, detail: '巴士站位置 · ' + stop.id }));
+    return organisePlaces(term, stops.map(stop => ({ ...stop, detail: '巴士站位置 · ' + stop.id })));
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', abort);

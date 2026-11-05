@@ -8,6 +8,7 @@ const attractions = [
 ];
 
 export function organisePlaces(query: string, places: Place[]): Place[] {
+  places = places.filter(place => !/除[顫颤]器|\baed\b|defibrillator/i.test(place.name));
   const term = normalName(query);
   const landmark = attractions.find(value => value.query.test(query.trim()));
   const station = landmark && places.find(place => normalName(place.name) === normalName(landmark.station));

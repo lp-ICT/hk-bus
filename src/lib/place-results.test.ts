@@ -45,3 +45,12 @@ test('official station search fallback still identifies the park near rail inste
   expect(results[0].railStationId).toBe('MTR:OCP');
   expect(results[1].detail).toStartWith('港鐵站');
 });
+
+
+test('all place queries exclude defibrillator entries while retaining their surrounding destinations', () => {
+  const school = { ...attraction, name: '聖公會李炳中學' };
+  const rows = [school, ...['自動心臟除顫器 - 李炳中學', '自动体外除颤器', 'AED - School', 'Automated External Defibrillator'].map(name => ({ ...school, name }))];
+  for (const query of ['李炳中學', 'AED', '除顫器', '學校']) {
+    expect(organisePlaces(query, rows).map(place => place.name)).toEqual([school.name]);
+  }
+});
