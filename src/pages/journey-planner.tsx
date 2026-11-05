@@ -164,6 +164,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
 export default function JourneyPlanner({ school = false, fromSchool = false, routes, loadingRoutes, position, favourites, onToggleFavourite, onSelect }: { school?: boolean; fromSchool?: boolean; routes: Route[]; loadingRoutes: boolean; position: { lat: number; lng: number } | null; favourites: Favourite[]; onToggleFavourite: (favourite: Favourite) => void; onSelect: (favourite: Favourite) => void }) {
   const active = useScreenActive();
   const [useGps, setUseGps] = useState(true);
+  const [transport, setTransport] = useState<'all' | Route['company']>('all');
   const [origin, setOrigin] = useState<Place | null>(null);
   const [originText, setOriginText] = useState('');
   const [destinationText, setDestinationText] = useState('');
@@ -205,6 +206,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
       if (!routes.some(route => route.company !== 'CTB')) throw new Error('交通路線資料未能載入，請稍後重試。');
       const graph = await journeyGraph();
       if (!mounted.current || id !== requestId.current) return;
+      const selectedRoutes = routes.filter(route => transport === 'all' || route.company === transport);
       const destinationIds = school ? schoolDestinationStops(graph.stops) : undefined;
       const result = start ? await new Promise<Journey[]>((resolve, reject) => {
         const task = new Worker(new URL('../lib/journey-worker.ts', import.meta.url));
@@ -214,8 +216,8 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
         stopWorker.current = () => { finish(); reject(new Error('搜尋已取消')); };
         task.onmessage = event => { finish(); event.data.error ? reject(new Error(event.data.error)) : resolve(event.data.journeys); };
         task.onerror = () => { finish(); reject(new Error('未能配對行程，請重試。')); };
-        task.postMessage({ routes, stops: graph.stops, rows: graph.rows, origin: start, destination, alightingIds: destinationIds, preferredRoutes: school ? favourites.map(f => f.route) : [], times: graph.times });
-      }) : directJourneys(routes, graph.stops, graph.rows, null, destination, true, destinationIds).map(journey => withJourneyTimes(journey, graph.times));
+        task.postMessage({ routes: selectedRoutes, stops: graph.stops, rows: graph.rows, origin: start, destination, alightingIds: destinationIds, preferredRoutes: school ? favourites.map(f => f.route) : [], times: graph.times });
+      }) : directJourneys(selectedRoutes, graph.stops, graph.rows, null, destination, true, destinationIds).map(journey => withJourneyTimes(journey, graph.times));
       if (mounted.current && id === requestId.current) {
         setJourneys(result); setSnapshot(graph.snapshotAt); setSearched(true);
       }
@@ -225,7 +227,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
   }
   useEffect(() => {
     if (active && school && !loadingRoutes) void find(false);
-  }, [school, loadingRoutes, routes, position, revision]);
+  }, [school, loadingRoutes, routes, position, revision, transport]);
   useEffect(() => {
     if (!active) { requestId.current++; stopWorker.current?.(); setBusy(false); }
     else if (!wasActive.current && (pendingFind.current || school && !searched) && !loadingRoutes) void find(false);
@@ -244,6 +246,8 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
       {fromSchool && <p className="school-destination">起點：聖公會李炳中學</p>}
       {!fromSchool && !useGps && <PlaceInput label="起點" value={origin} onTextChange={setOriginText} onChange={value => { setOrigin(value); clearResults(); }} />}
       {school ? <p className="school-destination">目的地：聖公會李炳中學</p> : <PlaceInput label="目的地" value={destination} onTextChange={setDestinationText} onChange={value => { setDestination(value); clearResults(); }} />}
+      <div className="filter-row" aria-label="行程交通工具">{([{ id: 'all', name: '全部交通' }, { id: 'KMB', name: '九巴 / 龍運' }, { id: 'CTB', name: '城巴（暫未支援行程配對）' }, { id: 'RESIDENT', name: '居民巴士' }, { id: 'GMB', name: '綠色小巴' }, { id: 'MTR', name: '港鐵' }] as const).map(option => <button key={option.id} disabled={option.id === 'CTB'} aria-pressed={transport === option.id} className={transport === option.id ? 'chosen' : ''} onClick={() => { clearResults(); setTransport(option.id); }}>{option.name}</button>)}</div>
+      <p className="list-note">全部交通可混合轉車；選擇個別類別後，所有車程只使用該類交通工具。Google 地圖另行提供公共交通方案，不套用此篩選。</p>
       <div className="google-directions">
         {mapsUrl ? <a className="primary-button" href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin size={16} />用 Google 地圖查路線</a> : <button className="primary-button" disabled><MapPin size={16} />用 Google 地圖查路線</button>}
         <p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p>
