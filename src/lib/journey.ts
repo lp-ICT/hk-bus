@@ -119,12 +119,12 @@ export function journeyLegs(journey: Journey): Journey[] {
   return [journey, ...(journey.transfer ? journeyLegs(journey.transfer.leg) : [])];
 }
 
-export function planJourneys(routes: Route[], stops: Stop[], rows: RouteStop[], origin: Place, destination: Place, alightingIds?: string[]) {
+export function planJourneys(routes: Route[], stops: Stop[], rows: RouteStop[], origin: Place, destination: Place, alightingIds?: string[], preferredRoutes: Route[] = []) {
   const direct = directJourneys(routes, stops, rows, origin, destination, false, alightingIds);
-  return [...direct, ...transferJourneys(routes, stops, rows, origin, destination, alightingIds, true)];
+  return [...direct, ...transferJourneys(routes, stops, rows, origin, destination, alightingIds, true, preferredRoutes)];
 }
 
-export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop[], origin: Place, destination: Place, alightingIds?: string[], includeTwo = false): Journey[] {
+export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop[], origin: Place, destination: Place, alightingIds?: string[], includeTwo = false, preferredRoutes: Route[] = []): Journey[] {
   const stopMap = new Map(stops.map(stop => [stop.id, stop]));
   const routeMap = new Map(routes.filter(route => route.company !== 'CTB').map(route => [routeKey(route), route]));
   const grouped = new Map<string, Stop[]>();
@@ -151,6 +151,9 @@ export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop
     }
   }
   if (!stops.some(stop => !restricted(stop) && distance(origin.lat, origin.lng, stop) <= 1000)) return [];
+  const preferred = (journey: Journey) => preferredRoutes.length > 0 && journeyLegs(journey).some(leg => preferredRoutes.some(saved =>
+    saved.company === leg.route.company && saved.route.trim().toUpperCase() === leg.route.route.trim().toUpperCase() &&
+    saved.bound === leg.route.bound && (leg.route.company !== 'GMB' || saved.service === leg.route.service)));
   const alternatives: Journey[] = [];
   for (let transfers = 1; transfers <= 2; transfers++) {
     const metadata = new Map(tails.map(tail => {
@@ -185,7 +188,7 @@ export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop
       const suffixes = new Map<string, { exit: Stop; transfer: { leg: Journey; meters: number }; cost: number }[]>();
       for (const stop of [...ordered].reverse()) {
         if (stop.pickup !== false && (transfers !== 2 || !restricted(stop) && distance(origin.lat, origin.lng, stop) <= 1000)) {
-          const options = [...suffixes.values()].map(choices => choices.find(value => value.exit.id !== stop.id)).filter((choice): choice is NonNullable<typeof choice> => !!choice).sort((a, b) => a.cost - b.cost);
+          const options = [...suffixes.values()].map(choices => choices.find(value => value.exit.id !== stop.id)).filter((choice): choice is NonNullable<typeof choice> => !!choice).sort((a, b) => Number(preferred(b.transfer.leg)) - Number(preferred(a.transfer.leg)) || a.cost - b.cost);
           for (const choice of includeTwo ? options.slice(0, 8) : options) {
             const candidate: Journey = { route, stop, alight: choice.exit, meters: 0, endMeters: choice.transfer.leg.endMeters, nearby: true, transfer: choice.transfer };
             next.push(candidate);
@@ -212,7 +215,7 @@ export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop
       if (!previous || meters + score(candidate) < previous.meters + score(previous)) reachable.set(key, candidate);
     }
     if (reachable.size) {
-      const options = [...reachable.values()].sort((a, b) => a.meters + score(a) - b.meters - score(b)).slice(0, 12);
+      const options = [...reachable.values()].sort((a, b) => Number(preferred(b)) - Number(preferred(a)) || a.meters + score(a) - b.meters - score(b)).slice(0, 12);
       if (!includeTwo) return options;
       alternatives.push(...options);
     }

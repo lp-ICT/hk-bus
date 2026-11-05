@@ -60,6 +60,6 @@ export default function PullRefresh({ enabled, busy, onRefresh }: { enabled: boo
   if (!enabled || (!pull && !refreshing)) return null;
   return <div className="pull-refresh-indicator" role="status" style={{ transform: `translate(-50%, ${refreshing ? 18 : pull / 3}px)` }}>
     {refreshing ? <RefreshCw size={18} className="spin" /> : <ArrowDown size={18} style={{ transform: pull >= 65 ? 'rotate(180deg)' : undefined }} />}
-    {refreshing ? '正在更新位置及交通資料…' : pull >= 65 ? '放手立即更新' : '向下拉更新'}
+    {refreshing ? '正在重新下載網頁…' : pull >= 65 ? '放手重新載入網頁' : '向下拉重新載入網頁'}
   </div>;
 }

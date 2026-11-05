@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { estimateJourney, withJourneyTimes, estimateClock, type TimedJourney } from './journey-time';
-import { sortJourneys } from '../pages/journey-planner';
+import { matchesSavedJourney, sortJourneys } from '../pages/journey-planner';
 import type { Journey } from './journey';
 
 const now = Date.parse('2026-11-05T08:00:00+08:00');
@@ -113,4 +113,14 @@ test('to-school keeps minibus route IDs separate when numbers and directions coi
   const saved = { ...minibus, stop: { ...base.stop, id: 'other' } };
   expect(sortJourneys([fast, savedSlow], now, [saved], true)[0]).toBe(savedSlow);
   expect(sortJourneys([fast, savedSlow], now, [{ ...saved, route: { ...saved.route, service: '2001' } }], true)[0]).toBe(fast);
+});
+
+test('school saved marker and ordering agree across stop, service, and normalized route fields', () => {
+  const saved = { ...base, route: { ...base.route, route: ' 1 ', bound: 'o' }, stop: { ...base.stop, id: 'OTHER', seq: 10 } };
+  const slow = timed({ ...base, route: { ...base.route, service: '2' }, rideMinutes: 40 });
+  const fast = timed({ ...base, route: { ...base.route, route: '2' }, rideMinutes: 1 });
+  expect(matchesSavedJourney(slow, [saved], true)).toBe(true);
+  expect(sortJourneys([fast, slow], now, [saved], true)[0]).toBe(slow);
+  expect(matchesSavedJourney(slow, [saved])).toBe(false);
+  expect(matchesSavedJourney({ ...slow, route: { ...slow.route, bound: 'I' } }, [saved], true)).toBe(false);
 });

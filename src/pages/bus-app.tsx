@@ -1,4 +1,5 @@
-import { usePageRefresh, refreshPageData } from '../lib/page-refresh';
+import { usePageRefresh } from '../lib/page-refresh';
+import { reloadLatestPage } from '../lib/reload-page';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownUp, ArrowLeft, ArrowRight, BusFront, ChevronRight, Clock3, Download, MapPin, Share2, RefreshCw, Search, Star, WifiOff, X } from 'lucide-react';
 import { allTransitStops, nearbyStops, distanceLabel, noArrivalMessage, arrivalLabel, arrivalsFor, companyName, distance, favouriteKey, routeKey, routesFor, stopsFor, type Arrival, type Company, type Favourite, type Route, type Stop } from '../lib/bus';
@@ -246,7 +247,7 @@ export default function BusApp() {
     </article>;
   }
   return <div className="bus-app">
-    <PullRefresh enabled={!showInstall && !showQr} busy={nearBusy || loading} onRefresh={async () => { await refreshNearby(); setRefreshRevision(value => value + 1); await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); await refreshPageData(); }} />
+    <PullRefresh enabled={!showInstall && !showQr} busy={false} onRefresh={reloadLatestPage} />
     <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><img className="school-crest" src={import.meta.env.BASE_URL + "school-crest.png"} alt="聖公會李炳中學校章" /><span>就到站<span className="brand-en app-version">v{import.meta.env.VITE_APP_VERSION}</span></span></a><div className="header-actions"><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button><button className="install-button qr-button" aria-label="分享網站" title="分享網站" onClick={() => setShowQr(true)}><Share2 size={18} /><span>分享</span></button></div></header>
     {!online && <div className="offline-banner" role="status"><WifiOff size={16} />目前離線 · 到站預報需要網絡連線</div>}
     <main>

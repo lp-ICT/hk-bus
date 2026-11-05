@@ -36,9 +36,16 @@ export function PlaceInput({ label, value, onChange }: { label: string; value: P
   </div>;
 }
 
+export function matchesSavedJourney(row: Journey, favourites: Favourite[], matchRouteDirection = false) {
+  const normal = (value: string) => String(value).trim().toUpperCase();
+  return journeyLegs(row).some(leg => favourites.some(f => matchRouteDirection
+    ? normal(f.route.company) === normal(leg.route.company) && normal(f.route.route) === normal(leg.route.route) && normal(f.route.bound) === normal(leg.route.bound) && (leg.route.company !== 'GMB' || normal(f.route.service) === normal(leg.route.service))
+    : favouriteKey(f) === favouriteKey(leg)));
+}
+
 export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favourite[] = [], matchRouteDirection = false) {
   const first = (row: TimedJourney) => Math.min(...row.arrivals.filter(arrival => arrival.eta && Date.parse(arrival.eta) > now - 60000).map(arrival => Date.parse(arrival.eta!)));
-  const saved = (row: TimedJourney) => journeyLegs(row).some(leg => favourites.some(f => matchRouteDirection ? f.route.company === leg.route.company && f.route.route === leg.route.route && f.route.bound === leg.route.bound && (leg.route.company !== 'GMB' || f.route.service === leg.route.service) : favouriteKey(f) === favouriteKey(leg)));
+  const saved = (row: TimedJourney) => matchesSavedJourney(row, favourites, matchRouteDirection);
   return [...rows].sort((a, b) => Number(saved(b)) - Number(saved(a)) || compareJourneyArrival(a, b, now) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
 }
 const journeyKey = (journey: Journey) => journeyLegs(journey).map(leg => routeKey(leg.route) + '-' + leg.stop.id + '-' + leg.stop.seq + '-' + leg.alight.id + '-' + leg.alight.seq).join('/');
@@ -108,6 +115,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
       return <div key={journeyKey(row)}>
         {school && (index === 0 || display[index - 1].nearby !== row.nearby) && <h3 className="journey-group">{row.nearby ? '由你附近出發 · 預計最快抵達優先' : '其他可到校路線 · 預計最快抵達優先'}</h3>}
         <div className="journey-estimate" aria-label="預計抵達目的地">
+          {prioritiseFavourites && matchesSavedJourney(row, favourites, school) && <strong>★ 收藏優先</strong>}
           <strong>{estimate.arrival !== undefined ? '預計抵達約 ' + estimateClock(estimate.arrival) : '預計抵達：未能估算'}</strong>
           <span>{estimate.arrival !== undefined ? '全程約 ' + Math.ceil((estimate.arrival - now) / 60000) + ' 分鐘' : estimate.reason}</span>
           {estimate.arrival !== undefined && <details><summary>估算詳情</summary><p>步行約 {Math.ceil(estimate.walking)} 分鐘 · 候車及轉車緩衝約 {Math.ceil(estimate.waiting)} 分鐘 · 車程約 {Math.ceil(estimate.riding)} 分鐘</p>{estimate.legs.map((leg, i) => <p key={i}>第{i + 1}程：約 {estimateClock(leg.boarding)} 上車 → {estimateClock(leg.alighting)} 落車</p>)}</details>}
@@ -183,7 +191,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
         stopWorker.current = () => { finish(); reject(new Error('搜尋已取消')); };
         task.onmessage = event => { finish(); event.data.error ? reject(new Error(event.data.error)) : resolve(event.data.journeys); };
         task.onerror = () => { finish(); reject(new Error('未能配對行程，請重試。')); };
-        task.postMessage({ routes, stops: graph.stops, rows: graph.rows, origin: start, destination, alightingIds: destinationIds, times: graph.times });
+        task.postMessage({ routes, stops: graph.stops, rows: graph.rows, origin: start, destination, alightingIds: destinationIds, preferredRoutes: school ? favourites.map(f => f.route) : [], times: graph.times });
       }) : directJourneys(routes, graph.stops, graph.rows, null, destination, true, destinationIds).map(journey => withJourneyTimes(journey, graph.times));
       if (mounted.current && id === requestId.current) {
         setJourneys(result); setSnapshot(graph.snapshotAt); setSearched(true);

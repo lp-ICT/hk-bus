@@ -163,3 +163,18 @@ test('destination planning compares direct and transfer candidates together', ()
   expect(result.some(journey => !journey.transfer)).toBe(true);
   expect(result.some(journey => journey.transfer?.leg.route.route === 'SECOND')).toBe(true);
 });
+
+test('school saved connecting routes survive candidate limits before final arrival sorting', () => {
+  const services = Array.from({ length: 14 }, (_, i) => ({ ...route, route: 'T' + i }));
+  const links = [
+    rows[0], rows[1],
+    ...services.flatMap(service => [
+      { ...rows[1], route: service.route, seq: 1 },
+      { ...rows[2], route: service.route, seq: 2 },
+    ]),
+  ];
+  const normal = planJourneys([route, ...services], stops, links, start, end, ['C']);
+  expect(normal.some(row => row.transfer?.leg.route.route === 'T13')).toBe(false);
+  const preferred = planJourneys([route, ...services], stops, links, start, end, ['C'], [services[13]]);
+  expect(preferred.some(row => row.transfer?.leg.route.route === 'T13')).toBe(true);
+});
