@@ -61,3 +61,5 @@
 [hidden] { display: none !important; }
 
 .route-number.resident { background: #ede8f8; color: #62468b; font-size: 1.15rem; overflow-wrap: anywhere; }
+
+.current-location .location-meta{white-space:nowrap;overflow-wrap:normal;letter-spacing:-.15px}.school-stop-note{display:flex;align-items:flex-start;gap:6px;margin:8px 0 10px;font-size:11px;color:#706b69;line-height:1.6}.school-stop-note>span{flex:1}.school-stop-note details{position:relative;flex-shrink:0}.school-stop-note summary{cursor:pointer;list-style:none;font-size:15px;line-height:1.2;padding:0 4px}.school-stop-note summary::-webkit-details-marker{display:none}.school-stop-note details p{position:absolute;right:0;top:20px;width:min(260px,75vw);margin:0;padding:10px;background:#fff;border:1px solid #eee2e3;border-radius:8px;box-shadow:0 4px 15px #0002;z-index:5;font-size:12px}
