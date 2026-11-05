@@ -1,3 +1,4 @@
+import { checkRequest, requestScope } from './request-scope';
 import { residentNetwork, residentRouteStops } from './resident-network';
 import { mtrNetwork, mtrRouteStops, mtrEntries, mtrArrivals } from './mtr';
 import { connectionReason, reportConnection } from './connection';
@@ -17,19 +18,20 @@ const metadataFiles: Record<string, string> = {
 };
 const requests = new Map<string, Promise<unknown>>();
 
-async function fetchBusData(url: string, cache: boolean) {
+async function fetchBusData(url: string, cache: boolean, signal?: AbortSignal) {
   for (let attempt = 0; ; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 18000);
+    checkRequest(signal);
+    const scope = requestScope(signal, 18000);
     try {
       const target = attempt ? `${url}${url.includes('?') ? '&' : '?'}retry=${Date.now()}` : url;
-      const response = await fetch(target, { signal: controller.signal, cache: attempt || !cache ? 'no-store' : 'default' });
+      const response = await fetch(target, { signal: scope.signal, cache: attempt || !cache ? 'no-store' : 'default' });
       if (!response.ok) throw new Error(`官方接口回應 HTTP ${response.status}`);
       const json = await response.json();
       if (!json || typeof json !== 'object' || !('data' in json)) throw new Error('收到的巴士資料不完整。');
       reportConnection(url, undefined);
       return json;
     } catch (error) {
+      checkRequest(signal);
       if (attempt) {
         const reason = connectionReason(error);
         reportConnection(url, reason);
@@ -53,11 +55,12 @@ async function fetchBusData(url: string, cache: boolean) {
         }
         throw error;
       }
-    } finally { clearTimeout(timer); }
+    } finally { scope.dispose(); }
   }
 }
 
-export async function data<T>(url: string, cache = true): Promise<T> {
+export async function data<T>(url: string, cache = true, signal?: AbortSignal): Promise<T> {
+  checkRequest(signal);
   const key = `bus-v1:${url}`;
   if (cache) {
     const hit = typeof window !== 'undefined' ? memory.get(url) : undefined;
@@ -75,7 +78,7 @@ export async function data<T>(url: string, cache = true): Promise<T> {
     if (requests.has(url)) return requests.get(url) as Promise<T>;
   }
   const request = (async () => {
-    const json = await fetchBusData(url, cache);
+    const json = await fetchBusData(url, cache, signal);
     if (cache) {
       const saved = { at: Date.now(), value: json.data, backupAt: json.snapshot_at as string | undefined };
       if (typeof window !== 'undefined') memory.set(url, saved);
@@ -141,17 +144,18 @@ export async function stopsFor(route: Route): Promise<Stop[]> {
   return result;
 }
 
-export async function arrivalsFor(route: Route, stop: Stop, alight?: Stop): Promise<Arrival[]> {
+export async function arrivalsFor(route: Route, stop: Stop, alight?: Stop, signal?: AbortSignal): Promise<Arrival[]> {
+  checkRequest(signal);
   if (route.company === 'RESIDENT') return [{ eta: null, remark: '居民巴士未提供即時到站，請查看官方時間表', seq: 1 }];
-  if (route.company === 'MTR') return mtrArrivals(route, stop, alight);
+  if (route.company === 'MTR') return mtrArrivals(route, stop, alight, signal);
   if (stop.etaAvailable === false) return [{ eta: null, remark: '此分站未有官方即時預報', seq: 1 }];
   if (route.company === 'GMB') {
-    const result = await data<{ enabled: boolean; eta: { timestamp: string; remarks_tc: string | null; eta_seq: number }[] }>(`https://data.etagmb.gov.hk/eta/route-stop/${route.service}/${route.bound}/${stop.seq}`, false);
+    const result = await data<{ enabled: boolean; eta: { timestamp: string; remarks_tc: string | null; eta_seq: number }[] }>(`https://data.etagmb.gov.hk/eta/route-stop/${route.service}/${route.bound}/${stop.seq}`, false, signal);
     if (!result.enabled) return [{ eta: null, remark: '此站暫未提供即時預報', seq: 1 }];
     return result.eta.map(row => ({ eta: row.timestamp || null, remark: row.remarks_tc || '', seq: row.eta_seq })).filter(row => !row.eta || Date.parse(row.eta) > Date.now() - 60000).sort((a, b) => a.seq - b.seq).slice(0, 3);
   }
   const path = route.company === 'KMB' ? `/eta/${stop.id}/${route.route}/${route.service}` : `/eta/CTB/${stop.id}/${route.route}`;
-  const rows = await data<Raw[]>(bases[route.company] + path, false);
+  const rows = await data<Raw[]>(bases[route.company] + path, false, signal);
   return rows.filter(row => String(row.dir) === route.bound && Number(row.seq) === stop.seq && (route.company !== 'KMB' || String(row.service_type) === route.service))
     .map(row => ({ eta: row.eta ? String(row.eta) : null, remark: String(row.rmk_tc || ''), seq: Number(row.eta_seq) }))
     .filter(row => !row.eta || Date.parse(row.eta) > Date.now() - 60000)
@@ -212,14 +216,16 @@ export function schoolSideStops<T extends Stop>(stops: T[], side: 'entrance' | '
 }
 
 export type NearbyArrival = Favourite & { meters: number; arrivals: Arrival[]; error: boolean };
-export async function nearbyArrivals(stop: Stop & { meters: number }, routes: Route[]): Promise<NearbyArrival[]> {
+export async function nearbyArrivals(stop: Stop & { meters: number }, routes: Route[], signal?: AbortSignal): Promise<NearbyArrival[]> {
+  checkRequest(signal);
   const entries = await routesAtStop(stop.id, routes);
+  checkRequest(signal);
   if (stop.id.startsWith('RESIDENT:') || stop.id.startsWith('GMB:') || stop.id.startsWith('MTR:')) return Promise.all(entries.map(async entry => {
-    try { return { ...entry, meters: stop.meters, arrivals: await arrivalsFor(entry.route, entry.stop), error: false }; }
+    try { return { ...entry, meters: stop.meters, arrivals: await arrivalsFor(entry.route, entry.stop, undefined, signal), error: false }; }
     catch { return { ...entry, meters: stop.meters, arrivals: [], error: true }; }
   }));
   try {
-    const rows = await data<Raw[]>(`${bases.KMB}/stop-eta/${stop.id}`, false);
+    const rows = await data<Raw[]>(`${bases.KMB}/stop-eta/${stop.id}`, false, signal);
     return entries.map(entry => ({ ...entry, meters: stop.meters, error: false, arrivals: rows
       .filter(row => String(row.route) === entry.route.route && String(row.dir) === entry.route.bound && String(row.service_type) === entry.route.service && Number(row.seq) === entry.stop.seq)
       .map(row => ({ eta: row.eta ? String(row.eta) : null, remark: String(row.rmk_tc || ''), seq: Number(row.eta_seq) }))

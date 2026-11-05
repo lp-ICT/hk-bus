@@ -1,3 +1,4 @@
+import { ScreenActivity, useScreenActive } from '../lib/activity';
 import { usePageRefresh } from '../lib/page-refresh';
 import { reloadLatestPage } from '../lib/reload-page';
 import { useEffect, useRef, useState } from 'react';
@@ -23,6 +24,7 @@ function readFavourites(): Favourite[] {
 }
 
 function EtaPanel({ selected, compact = false }: { selected: Favourite; compact?: boolean }) {
+  const active = useScreenActive();
   const [arrivals, setArrivals] = useState<Arrival[]>([]);
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(0);
@@ -31,6 +33,9 @@ function EtaPanel({ selected, compact = false }: { selected: Favourite; compact?
   const refreshAction = useRef<() => Promise<void>>(async () => {});
   usePageRefresh(() => refreshAction.current());
   useEffect(() => {
+    if (!active) return;
+    setNow(Date.now());
+    const controller = new AbortController();
     let cancelled = false;
     let running = false;
     let due = 0;
@@ -39,7 +44,7 @@ function EtaPanel({ selected, compact = false }: { selected: Favourite; compact?
       running = true; setBusy(true);
       try {
         if (!navigator.onLine) throw new Error('offline');
-        const result = await arrivalsFor(selected.route, selected.stop);
+        const result = await arrivalsFor(selected.route, selected.stop, undefined, controller.signal);
         if (!cancelled) { setArrivals(result); setNow(Date.now()); setUpdated(Date.now()); setError(''); }
       } catch {
         if (!cancelled) setError('更新失敗，請重試。');
@@ -53,9 +58,9 @@ function EtaPanel({ selected, compact = false }: { selected: Favourite; compact?
     const timer = setInterval(() => { setNow(Date.now()); if (Date.now() >= due && document.visibilityState === 'visible') void refresh(); }, 1000);
     const resume = () => { if (document.visibilityState === 'visible') void refresh(); };
     const offline = () => setError('目前離線，保留上次成功資料；請連線後更新。');
-    window.addEventListener('online', resume); window.addEventListener('offline', offline); document.addEventListener('visibilitychange', resume);
-    return () => { cancelled = true; clearInterval(timer); window.removeEventListener('online', resume); window.removeEventListener('offline', offline); document.removeEventListener('visibilitychange', resume); };
-  }, [selected]);
+    window.addEventListener('online', resume); window.addEventListener('offline', offline);
+    return () => { cancelled = true; controller.abort(); clearInterval(timer); window.removeEventListener('online', resume); window.removeEventListener('offline', offline); };
+  }, [selected, active]);
   const stale = updated > 0 && now - updated > 90000;
   const display = arrivals.filter(a => a.eta && Date.parse(a.eta) > now - 60000).slice(0, 3);
   return <div className={compact ? 'eta-panel compact-eta' : 'eta-panel'} aria-live="polite">
@@ -69,6 +74,7 @@ function EtaPanel({ selected, compact = false }: { selected: Favourite; compact?
 }
 
 export default function BusApp() {
+  const active = useScreenActive();
   const [tab, setTab] = useState<'search' | 'favourites' | 'nearby' | 'school' | 'toSchool'>('nearby');
   const [query, setQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'route' | 'journey'>('route');
@@ -106,13 +112,11 @@ export default function BusApp() {
   const [showTimetable, setShowTimetable] = useState(false);
   const stopList = useRef<HTMLDivElement>(null);
   const autoLocated = useRef('');
-  const located = useRef(false);
   const startupDeadline = useRef(Date.now() + 30000);
   const locationReady = useRef(false);
   const routeReady = useRef(false);
   const locationActive = useRef(false);
   const routeActive = useRef(false);
-  useEffect(() => { if (!located.current) { located.current = true; void locate(); } }, []);
 
   async function loadRoutes() {
     if (routeActive.current) return;
@@ -126,7 +130,6 @@ export default function BusApp() {
     setLoading(false); routeActive.current = false;
   }
   useEffect(() => {
-    void loadRoutes();
     const status = () => setOnline(navigator.onLine);
     const prompt = (e: Event) => { e.preventDefault(); setInstall(e as InstallEvent); };
     window.addEventListener('online', status); window.addEventListener('offline', status);
@@ -135,13 +138,19 @@ export default function BusApp() {
     return () => { window.removeEventListener('online', status); window.removeEventListener('offline', status); window.removeEventListener('beforeinstallprompt', prompt); };
   }, []);
   useEffect(() => {
+    if (!active) return;
     const timer = setInterval(() => {
       if (Date.now() > startupDeadline.current) { clearInterval(timer); return; }
       if (!locationReady.current) void locate();
       if (!routeReady.current) void loadRoutes();
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [active]);
+  useEffect(() => {
+    if (!active) return;
+    if (!routeReady.current) void loadRoutes();
+    if (!locationReady.current && !locationActive.current) void locate();
+  }, [active]);
   async function refreshNearby() {
     await Promise.all([locate(), loadRoutes()]);
   }
@@ -258,7 +267,7 @@ export default function BusApp() {
       {route ? <section className="route-detail"><button className="back-button" onClick={() => { setRoute(null); setSelected(null); }}><ArrowLeft size={17} />返回路線</button><div className="detail-heading"><span className={`route-number ${route.company.toLowerCase()}`}>{route.route}</span><div><small>{companyName(route.company)}{route.company !== 'GMB' && route.company !== 'MTR' && route.company !== 'RESIDENT' && route.service !== '1' ? ` · 特別班次 ${route.service}` : ''}</small><h2>往 {route.to}</h2><p>由 {route.from} 開出</p></div><button className="icon-button switch-button" aria-label="切換方向" disabled={!routes.some(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound)} onClick={() => { const reverse = routes.find(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound && r.service === route.service) || routes.find(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound); if (reverse) { setRoute(reverse); setSelected(null); } }}><ArrowDownUp size={21} /></button></div><div className="route-tools"><button className="text-button" aria-expanded={showMap} onClick={() => setShowMap(value => !value)}>{showMap ? '收起地圖' : '顯示地圖'}</button><button className="text-button" aria-expanded={showTimetable} onClick={() => setShowTimetable(value => !value)}>時間表／服務時間</button></div>{showTimetable && <RouteTimetable key={routeKey(route)} route={route} />}{showMap && <RouteMap route={route} stops={stops} position={deviceLocation || position} selected={selected?.stop || null} onSelect={selectMapStop} />}<div className="section-label"><span>選擇上車站</span><span>{stops.length} 個車站</span></div>{stopLoading && <p className="loading-message"><RefreshCw size={17} className="spin" />正在載入車站…</p>}{stopError && <p className="error-text" role="alert">{stopError}</p>}{!stopLoading && !stopError && !stops.length && <p className="empty-message">這個方向暫時沒有車站資料，請切換方向。</p>}<div className="stop-list route-stop-scroll" ref={stopList}>{stops.map(stop => {
         const value = { route, stop }; const chosen = selected && favouriteKey(selected) === favouriteKey(value); const saved = favourites.some(f => favouriteKey(f) === favouriteKey(value));
         return <div data-stop-seq={stop.seq} key={`${stop.id}-${stop.seq}`} className={`stop-item ${chosen ? 'selected' : ''}`}><div className="stop-line"><button className="stop-select" onClick={() => setSelected(chosen ? null : value)} aria-expanded={!!chosen}><span className="stop-seq">{stop.seq}</span><strong>{stop.name}{position && <small className="stop-distance">{distanceLabel(distance(position.lat, position.lng, stop))}</small>}</strong><ChevronRight size={17} /></button><button className={`icon-button star-button ${saved ? 'saved' : ''}`} aria-label={`${saved ? '取消收藏' : '收藏'}${stop.name}`} onClick={() => toggleFavourite(value)}><Star size={20} fill={saved ? 'currentColor' : 'none'} /></button></div>{chosen && <EtaPanel key={favouriteKey(value)} selected={value} />}</div>;
-      })}</div></section> : null}<div hidden={!!route}>
+      })}</div></section> : null}<ScreenActivity.Provider value={!route}><div hidden={!!route}>
         {tab === 'search' && <div className="filter-row search-modes" aria-label="搜尋方式"><button className={searchMode === 'route' ? 'chosen' : ''} aria-pressed={searchMode === 'route'} onClick={() => setSearchMode('route')}>路線／車站</button><button className={searchMode === 'journey' ? 'chosen' : ''} aria-pressed={searchMode === 'journey'} onClick={() => setSearchMode('journey')}>起點 → 目的地</button></div>}
         {tab === 'search' && searchMode === 'journey' && <JourneyPlanner routes={routes} loadingRoutes={loading} position={position} favourites={favourites} onToggleFavourite={toggleFavourite} onSelect={value => { setRoute(value.route); setSelected(value); }} />}
         {tab === 'toSchool' && <JourneyPlanner school routes={routes} loadingRoutes={loading} position={position} favourites={favourites} onToggleFavourite={toggleFavourite} onSelect={value => { setRoute(value.route); setSelected(value); }} />}
@@ -272,7 +281,7 @@ export default function BusApp() {
           {(!nearby.length || (nearAccuracy !== null && nearAccuracy > 500) || manualPlace) && !nearBusy && <button className="text-button" onClick={() => setChoosePlace(value => !value)}>{choosePlace ? '收起地點選擇' : '選擇附近位置'}</button>}
           {choosePlace && !nearBusy && <PlaceInput label="附近地點" value={null} onChange={place => { if (place) { setManualPlace(place); manualSource.current = place; setChoosePlace(false); void locate(); } }} />}
           {nearError && <p role="alert" className="error-text">{nearError}</p>}{nearBusy && <p className="loading-message"><RefreshCw size={17} className="spin" />正在查詢位置及車站資料…</p>}{nearby.length === 0 && <button className="primary-button" disabled={nearBusy || loading} onClick={() => void refreshNearby()}>立即更新</button>}{nearby.length > 0 && <NearbyRoutes favourites={favourites} onToggleFavourite={toggleFavourite} position={position} onRefresh={refreshNearby} locating={nearBusy} startupDeadline={startupDeadline.current} stops={nearby} routes={routes} loadingRoutes={loading} onSelect={value => { setRoute(value.route); setSelected(value); }} />}<p className="list-note">城巴請使用「搜尋路線」查詢車站及到站時間。</p></section>}
-      </div>
+      </div></ScreenActivity.Provider>
       <footer><span className="footer-brand"><BusFront size={17} /> 就到站</span><p>資料來自 <a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_21-etakmb" target="_blank" rel="noreferrer">九巴／龍運</a> 及 <a href="https://data.gov.hk/tc-data/dataset/ctb-eta-transport-realtime-eta" target="_blank" rel="noreferrer">城巴</a>、<a href="https://data.gov.hk/tc-data/dataset/hk-td-sm_7-real-time-arrival-data-of-gmb" target="_blank" rel="noreferrer">綠色小巴</a>、<a href="https://data.gov.hk/tc-data/dataset/mtr-data2-nexttrain-data" target="_blank" rel="noreferrer">港鐵</a> 開放數據。<br />非官方應用程式 · 到站時間以營辦商資料為準</p><span className="footer-note"><Clock3 size={13} /> 香港時間 UTC+8</span></footer>
     </main>
     {notice && <div className="toast" role="status">{notice}</div>}

@@ -1,3 +1,4 @@
+import { useScreenActive } from '../lib/activity';
 import { usePageRefresh } from '../lib/page-refresh';
 import { useEffect, useRef, useState } from 'react';
 import { Star } from 'lucide-react';
@@ -6,6 +7,7 @@ import { companyName, distance, distanceLabel, favouriteKey, noArrivalMessage, a
 type Result = NearbyArrival & { updated: number };
 const rowKey = (row: NearbyArrival) => `${row.route.company}-${row.route.route}-${row.route.bound}${row.route.company === 'RESIDENT' || row.route.company === 'GMB' || row.route.company === 'MTR' ? '-' + row.route.service : ''}`;
 export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect, onRefresh, locating, startupDeadline, stationName, favourites, onToggleFavourite, position }: { favourites: Favourite[]; onToggleFavourite: (value: Favourite) => void; position: { lat: number; lng: number } | null; stationName?: string; onRefresh: () => Promise<void>; locating: boolean; startupDeadline: number; stops: (Stop & { meters: number })[]; routes: Route[]; loadingRoutes: boolean; onSelect: (value: Favourite) => void }) {
+  const active = useScreenActive();
   const [rows, setRows] = useState<Result[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
@@ -15,6 +17,9 @@ export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect, o
   const refreshAction = useRef(async () => {});
   usePageRefresh(() => refreshAction.current());
   useEffect(() => {
+    if (!active) return;
+    setNow(Date.now());
+    const controller = new AbortController();
     let cancelled = false;
     let running = false;
     let due = 0;
@@ -28,7 +33,7 @@ export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect, o
         const results: NearbyArrival[] = [];
         let failures = 0;
         for (let offset = 0; offset < stops.length; offset += 3) {
-          const batch = await Promise.allSettled(stops.slice(offset, offset + 3).map(stop => nearbyArrivals(stop, routes)));
+          const batch = await Promise.allSettled(stops.slice(offset, offset + 3).map(stop => nearbyArrivals(stop, routes, controller.signal)));
           if (cancelled) return;
           for (const result of batch) {
             if (result.status === 'fulfilled') results.push(...result.value);
@@ -65,9 +70,8 @@ export default function NearbyRoutes({ stops, routes, loadingRoutes, onSelect, o
     }, 1000);
     const resume = () => { if (document.visibilityState === 'visible') void refresh(); };
     window.addEventListener('online', resume);
-    document.addEventListener('visibilitychange', resume);
-    return () => { cancelled = true; clearInterval(timer); window.removeEventListener('online', resume); document.removeEventListener('visibilitychange', resume); };
-  }, [stops, routes, loadingRoutes, startupDeadline]);
+    return () => { cancelled = true; controller.abort(); clearInterval(timer); window.removeEventListener('online', resume); };
+  }, [stops, routes, loadingRoutes, startupDeadline, active]);
   const display = sortNearby(rows.map(row => ({ ...row, arrivals: row.arrivals.filter(a => !a.eta || Date.parse(a.eta) > now - 60000) })), now) as Result[];
   if (stationName) display.sort((a, b) => Number(favourites.some(f => favouriteKey(f) === favouriteKey(b))) - Number(favourites.some(f => favouriteKey(f) === favouriteKey(a))));
   return <div className="near-routes">

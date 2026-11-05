@@ -1,3 +1,4 @@
+import { useScreenActive } from '../lib/activity';
 import { googleTransitUrl } from '../lib/google-directions';
 import { usePageRefresh } from '../lib/page-refresh';
 import { useEffect, useRef, useState } from 'react';
@@ -7,6 +8,7 @@ import { arrivalLabel, arrivalsFor, companyName, routeDescription, favouriteKey,
 import { currentPlace, directJourneys, journeyLegs, journeyGraph, schoolPlace, schoolDestinationStops, searchPlaces, type Journey, type Place } from '../lib/journey';
 
 export function PlaceInput({ label, value, onChange, onTextChange }: { label: string; value: Place | null; onChange: (place: Place | null) => void; onTextChange?: (text: string) => void }) {
+  const active = useScreenActive();
   const [text, setText] = useState(value?.name || '');
   const [matches, setMatches] = useState<Place[]>([]);
   const [showAllPlaces, setShowAllPlaces] = useState(false);
@@ -14,7 +16,10 @@ export function PlaceInput({ label, value, onChange, onTextChange }: { label: st
   const [error, setError] = useState('');
   const request = useRef<AbortController | null>(null);
   useEffect(() => { if (value) setText(value.name); }, [value]);
-  useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => {
+    if (!active) { request.current?.abort(); setBusy(false); }
+    return () => request.current?.abort();
+  }, [active]);
   async function lookup() {
     request.current?.abort();
     const controller = new AbortController();
@@ -54,14 +59,19 @@ export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favo
 const journeyKey = (journey: Journey) => journeyLegs(journey).map(leg => routeKey(leg.route) + '-' + leg.stop.id + '-' + leg.stop.seq + '-' + leg.alight.id + '-' + leg.alight.seq).join('/');
 
 function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, onToggleFavourite, onSelect, prioritiseFavourites }: { prioritiseFavourites: boolean; journeys: Journey[]; school: boolean; refreshing: boolean; onRefresh: () => Promise<void>; favourites: Favourite[]; onToggleFavourite: (favourite: Favourite) => void; onSelect: (favourite: Favourite) => void }) {
+  const active = useScreenActive();
+  const savedResults = useRef<{ journeys: Journey[]; rows: TimedJourney[] } | null>(null);
   const [rows, setRows] = useState<TimedJourney[]>([]);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [due, setDue] = useState(0);
   useEffect(() => {
+    if (!active) return;
+    setNow(Date.now());
+    const controller = new AbortController();
     let cancelled = false, running = false, next = 0;
     const retryDeadline = Date.now() + 30000;
-    let saved: TimedJourney[] = journeys.map(journey => ({ ...journey, arrivals: [], updated: 0, error: false }));
+    let saved: TimedJourney[] = savedResults.current?.journeys === journeys ? savedResults.current.rows : journeys.map(journey => ({ ...journey, arrivals: [], updated: 0, error: false }));
     setRows(saved);
     async function refresh() {
       if (cancelled || running) return;
@@ -72,7 +82,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
         const forecasts = new Map<string, Promise<Arrival[]>>();
         const forecast = (leg: Journey) => {
           const key = favouriteKey(leg) + (leg.route.company === 'MTR' ? '-' + leg.alight.id : '');
-          if (!forecasts.has(key)) forecasts.set(key, arrivalsFor(leg.route, leg.stop, leg.alight));
+          if (!forecasts.has(key)) forecasts.set(key, arrivalsFor(leg.route, leg.stop, leg.alight, controller.signal));
           return forecasts.get(key)!;
         };
         for (let offset = 0; offset < journeys.length; offset += 5) {
@@ -90,9 +100,12 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
           }));
           if (cancelled) return;
           results.forEach(row => updated.set(journeyKey(row), row));
-          setRows(saved.map(row => updated.get(journeyKey(row)) || row));
+          const partial = saved.map(row => updated.get(journeyKey(row)) || row);
+          savedResults.current = { journeys, rows: partial };
+          setRows(partial);
         }
         saved = saved.map(row => updated.get(journeyKey(row)) || row);
+        savedResults.current = { journeys, rows: saved };
       } finally {
         running = false;
         next = Date.now() + (failed && Date.now() + 5000 <= retryDeadline ? 5000 : 30000);
@@ -102,9 +115,9 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
     void refresh();
     const timer = setInterval(() => { setNow(Date.now()); if (next && Date.now() >= next && document.visibilityState === 'visible') void refresh(); }, 1000);
     const resume = () => { if (document.visibilityState === 'visible') void refresh(); };
-    window.addEventListener('online', resume); document.addEventListener('visibilitychange', resume);
-    return () => { cancelled = true; clearInterval(timer); window.removeEventListener('online', resume); document.removeEventListener('visibilitychange', resume); };
-  }, [journeys]);
+    window.addEventListener('online', resume);
+    return () => { cancelled = true; controller.abort(); clearInterval(timer); window.removeEventListener('online', resume); };
+  }, [journeys, active]);
   const display = sortJourneys(rows, now, prioritiseFavourites ? favourites : [], school);
   return <div className="journey-results">
     <div className="nearby-refresh"><span role="timer">{busy || refreshing ? '正在更新資料…' : '下次更新：' + Math.max(0, Math.ceil((due - now) / 1000)) + ' 秒'}</span><button className="primary-button" disabled={busy || refreshing} onClick={() => void onRefresh()}>立即更新</button></div>
@@ -149,6 +162,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
 }
 
 export default function JourneyPlanner({ school = false, fromSchool = false, routes, loadingRoutes, position, favourites, onToggleFavourite, onSelect }: { school?: boolean; fromSchool?: boolean; routes: Route[]; loadingRoutes: boolean; position: { lat: number; lng: number } | null; favourites: Favourite[]; onToggleFavourite: (favourite: Favourite) => void; onSelect: (favourite: Favourite) => void }) {
+  const active = useScreenActive();
   const [useGps, setUseGps] = useState(true);
   const [origin, setOrigin] = useState<Place | null>(null);
   const [originText, setOriginText] = useState('');
@@ -163,12 +177,15 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
   const worker = useRef<Worker | null>(null);
   const stopWorker = useRef<(() => void) | null>(null);
   const requestId = useRef(0);
+  const pendingFind = useRef(false);
+  const wasActive = useRef(active);
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; requestId.current++; stopWorker.current?.(); }; }, []);
   async function find(refreshGps = false) {
     stopWorker.current?.();
     const id = ++requestId.current;
     if (!destination) { setError('請先尋找並選擇目的地。'); return; }
+    pendingFind.current = true;
     setBusy(true); setError('');
     try {
       let start = fromSchool ? schoolPlace : origin;
@@ -183,6 +200,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
           }
         }
       }
+      if (!mounted.current || id !== requestId.current) return;
       if (!school && !start) throw new Error('請先尋找並選擇起點。');
       if (!routes.some(route => route.company !== 'CTB')) throw new Error('交通路線資料未能載入，請稍後重試。');
       const graph = await journeyGraph();
@@ -203,12 +221,17 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
       }
     } catch (error) {
       if (mounted.current && id === requestId.current) setError(error instanceof Error ? error.message : '未能搜尋路線，請重試。');
-    } finally { if (mounted.current && id === requestId.current) setBusy(false); }
+    } finally { if (mounted.current && id === requestId.current) { pendingFind.current = false; setBusy(false); } }
   }
   useEffect(() => {
-    if (school && !loadingRoutes) void find(false);
+    if (active && school && !loadingRoutes) void find(false);
   }, [school, loadingRoutes, routes, position, revision]);
-  function clearResults() { requestId.current++; stopWorker.current?.(); setSearched(false); setJourneys([]); setBusy(false); setError(''); }
+  useEffect(() => {
+    if (!active) { requestId.current++; stopWorker.current?.(); setBusy(false); }
+    else if (!wasActive.current && (pendingFind.current || school && !searched) && !loadingRoutes) void find(false);
+    wasActive.current = active;
+  }, [active]);
+  function clearResults() { pendingFind.current = false; requestId.current++; stopWorker.current?.(); setSearched(false); setJourneys([]); setBusy(false); setError(''); }
   async function refresh() { await find(useGps); }
   usePageRefresh(async () => { if (!busy && (searched || school)) await find(false); });
   const mapsOrigin = fromSchool ? schoolPlace : useGps ? position ? { ...position, name: '目前位置' } : null : origin || originText;

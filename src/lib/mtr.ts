@@ -1,3 +1,4 @@
+import { checkRequest, requestScope } from './request-scope';
 import type { Arrival, Favourite, Route, Stop } from './bus';
 import { connectionReason, reportConnection } from './connection';
 
@@ -57,31 +58,36 @@ export function parseMtrArrivals(value: TrainResponse, route: Route, stop: Stop,
     })).filter(row => row.eta && Number.isFinite(Date.parse(row.eta)) && Date.parse(row.eta) >= now - 60000)
     .sort((a, b) => Date.parse(a.eta!) - Date.parse(b.eta!)).slice(0, 3);
 }
-const forecasts = new Map<string, { at: number; value: Promise<TrainResponse> }>();
-async function trainSchedule(line: string, station: string) {
+type Forecast = { at: number; value: Promise<TrainResponse> };
+const forecasts = new Map<string, Forecast>();
+const scopedForecasts = new WeakMap<AbortSignal, Map<string, Forecast>>();
+async function trainSchedule(line: string, station: string, signal?: AbortSignal) {
+  checkRequest(signal);
   const url = 'https://rt.data.gov.hk/v1/transport/mtr/getSchedule.php?line=' + encodeURIComponent(line) + '&sta=' + encodeURIComponent(station) + '&lang=TC';
-  const saved = forecasts.get(url);
+  let cache = signal ? scopedForecasts.get(signal) : forecasts;
+  if (!cache) { cache = new Map(); scopedForecasts.set(signal!, cache); }
+  const saved = cache.get(url);
   if (saved && Date.now() - saved.at < 5000) return saved.value;
   const request = (async () => {
     for (let attempt = 0; ; attempt++) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 15000);
+      checkRequest(signal);
+      const scope = requestScope(signal, 15000);
       try {
-        const response = await fetch(url + (attempt ? '&retry=' + Date.now() : ''), { signal: controller.signal, cache: 'no-store' });
+        const response = await fetch(url + (attempt ? '&retry=' + Date.now() : ''), { signal: scope.signal, cache: 'no-store' });
         if (!response.ok) throw new Error('港鐵接口回應 HTTP ' + response.status);
         const value = await response.json() as TrainResponse;
         if (Number(value.status) !== 1) throw new Error(value.message || '港鐵即時資料暫未能取得');
         reportConnection(url);
         return value;
-      } catch (error) { if (attempt) { reportConnection(url, connectionReason(error)); throw error; } }
-      finally { clearTimeout(timer); }
+      } catch (error) { checkRequest(signal); if (attempt) { reportConnection(url, connectionReason(error)); throw error; } }
+      finally { scope.dispose(); }
     }
-  })().catch(error => { forecasts.delete(url); throw error; });
-  forecasts.set(url, { at: Date.now(), value: request });
+  })().catch(error => { cache.delete(url); throw error; });
+  cache.set(url, { at: Date.now(), value: request });
   return request;
 }
-export async function mtrArrivals(route: Route, stop: Stop, alight?: Stop): Promise<Arrival[]> {
-  const [network, value] = await Promise.all([mtrNetwork(), trainSchedule(route.region!, stop.id.slice(4))]);
+export async function mtrArrivals(route: Route, stop: Stop, alight?: Stop, signal?: AbortSignal): Promise<Arrival[]> {
+  const [network, value] = await Promise.all([mtrNetwork(), trainSchedule(route.region!, stop.id.slice(4), signal)]);
   return parseMtrArrivals(value, route, stop, network, alight);
 }
 export function transferWalk(a: Stop, b: Stop, meters: number): number | null {
