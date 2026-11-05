@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { estimateJourney, withJourneyTimes, estimateClock, type TimedJourney } from './journey-time';
-import { matchesSavedJourney, sortJourneys } from '../pages/journey-planner';
+import { canCollapseTransfers, matchesSavedJourney, sortJourneys } from '../pages/journey-planner';
 import type { Journey } from './journey';
 
 const now = Date.parse('2026-11-05T08:00:00+08:00');
@@ -169,4 +169,14 @@ test('arrival ordering remains active inside each rail priority group', () => {
   const slow = timed({ ...base, rideMinutes: 60 });
   const fast = timed({ ...base, rideMinutes: 5 });
   expect(sortJourneys([slow, fast], now, [], false, 'destination')).toEqual([fast, slow]);
+});
+
+test('collapse transfers only with two distinct direct routes, not duplicate boarding stops', () => {
+  const transfer: Journey = { ...base, transfer: { leg: base, meters: 0 } };
+  const second: Journey = { ...base, route: { ...base.route, route: '2' } };
+  expect(canCollapseTransfers([base, second, transfer])).toBe(true);
+  expect(canCollapseTransfers([base, { ...base, stop: { ...base.stop, id: 'other' } }, transfer])).toBe(false);
+  expect(canCollapseTransfers([base, transfer])).toBe(false);
+  expect(canCollapseTransfers([transfer])).toBe(false);
+  expect(canCollapseTransfers([base, second])).toBe(false);
 });

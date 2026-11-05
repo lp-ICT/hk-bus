@@ -69,10 +69,15 @@ export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favo
 }
 const journeyKey = (journey: Journey) => journeyLegs(journey).map(leg => routeKey(leg.route) + '-' + leg.stop.id + '-' + leg.stop.seq + '-' + leg.alight.id + '-' + leg.alight.seq).join('/');
 
+export function canCollapseTransfers(rows: Journey[]) {
+  return new Set(rows.filter(row => !row.transfer).map(row => row.route.company + ':' + row.route.route)).size >= 2 && rows.some(row => !!row.transfer);
+}
+
 function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, onToggleFavourite, onSelect, prioritiseFavourites, railPriority }: { railPriority: RailPriority; prioritiseFavourites: boolean; journeys: Journey[]; school: boolean; refreshing: boolean; onRefresh: () => Promise<void>; favourites: Favourite[]; onToggleFavourite: (favourite: Favourite) => void; onSelect: (favourite: Favourite) => void }) {
   const active = useScreenActive();
   const savedResults = useRef<{ journeys: Journey[]; rows: TimedJourney[] } | null>(null);
   const [rows, setRows] = useState<TimedJourney[]>([]);
+  const [expandedJourneys, setExpandedJourneys] = useState<Journey[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [due, setDue] = useState(0);
@@ -130,12 +135,16 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
     return () => { cancelled = true; controller.abort(); clearInterval(timer); window.removeEventListener('online', resume); };
   }, [journeys, active]);
   const display = sortJourneys(rows, now, prioritiseFavourites ? favourites : [], school, railPriority);
+  const collapseTransfers = canCollapseTransfers(journeys);
+  const showTransfers = !collapseTransfers || expandedJourneys === journeys;
+  const visibleRows = showTransfers ? display : display.filter(row => !row.transfer);
   return <div className="journey-results">
     <div className="nearby-refresh"><span role="timer">{busy || refreshing ? '正在更新資料…' : '下次更新：' + Math.max(0, Math.ceil((due - now) / 1000)) + ' 秒'}</span><button className="primary-button" disabled={busy || refreshing} onClick={() => void onRefresh()}>立即更新</button></div>
     {school ? <details className="journey-help"><summary>排序說明 ⓘ</summary><p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p></details> : <p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p>}
     {railPriority !== 'none' && <p className="station-caption">{railPriority === 'both' ? '起點及目的地均為港鐵站：港鐵方案優先。' : '目的地為港鐵站：直達巴士優先，其次為第二程乘港鐵的方案。'}各組內按預計最快抵達排序。</p>}
     {rows.some(row => row.error) && <p className="data-warning" role="alert">部分到站資料未能更新；有舊資料的路線會保留上次預報，請留意時間。</p>}
-    {display.map(row => {
+    {collapseTransfers && <button className="primary-button" aria-expanded={showTransfers} onClick={() => setExpandedJourneys(showTransfers ? null : journeys)}>{showTransfers ? '隱藏轉車方案' : '顯示轉車方案'}（{journeys.filter(row => row.transfer).length}）</button>}
+    {visibleRows.map(row => {
       const saved = favourites.some(favourite => favouriteKey(favourite) === favouriteKey(row));
       const arrivals = row.arrivals.filter(arrival => arrival.eta && Date.parse(arrival.eta) > now - 60000).slice(0, 3);
       const estimate = estimateJourney(row, now);
