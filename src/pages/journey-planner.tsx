@@ -36,9 +36,9 @@ export function PlaceInput({ label, value, onChange }: { label: string; value: P
   </div>;
 }
 
-export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favourite[] = []) {
+export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favourite[] = [], matchRouteDirection = false) {
   const first = (row: TimedJourney) => Math.min(...row.arrivals.filter(arrival => arrival.eta && Date.parse(arrival.eta) > now - 60000).map(arrival => Date.parse(arrival.eta!)));
-  const saved = (row: TimedJourney) => journeyLegs(row).some(leg => favourites.some(f => favouriteKey(f) === favouriteKey(leg)));
+  const saved = (row: TimedJourney) => journeyLegs(row).some(leg => favourites.some(f => matchRouteDirection ? f.route.company === leg.route.company && f.route.route === leg.route.route && f.route.bound === leg.route.bound && (leg.route.company !== 'GMB' || f.route.service === leg.route.service) : favouriteKey(f) === favouriteKey(leg)));
   return [...rows].sort((a, b) => Number(saved(b)) - Number(saved(a)) || compareJourneyArrival(a, b, now) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
 }
 const journeyKey = (journey: Journey) => journeyLegs(journey).map(leg => routeKey(leg.route) + '-' + leg.stop.id + '-' + leg.stop.seq + '-' + leg.alight.id + '-' + leg.alight.seq).join('/');
@@ -95,10 +95,10 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
     window.addEventListener('online', resume); document.addEventListener('visibilitychange', resume);
     return () => { cancelled = true; clearInterval(timer); window.removeEventListener('online', resume); document.removeEventListener('visibilitychange', resume); };
   }, [journeys]);
-  const display = sortJourneys(rows, now, prioritiseFavourites ? favourites : []);
+  const display = sortJourneys(rows, now, prioritiseFavourites ? favourites : [], school);
   return <div className="journey-results">
     <div className="nearby-refresh"><span role="timer">{busy || refreshing ? '正在更新資料…' : '下次更新：' + Math.max(0, Math.ceil((due - now) / 1000)) + ' 秒'}</span><button className="primary-button" disabled={busy || refreshing} onClick={() => void onRefresh()}>立即更新</button></div>
-    {prioritiseFavourites && <p className="station-caption">已收藏的路線優先，組內按預計抵達時間排序。</p>}
+    {prioritiseFavourites && <p className="station-caption">{school ? '已收藏的同一路線及方向優先（不限上車站），組內按預計抵達時間排序。' : '已收藏的路線優先，組內按預計抵達時間排序。'}</p>}
     {rows.some(row => row.error) && <p className="data-warning" role="alert">部分到站資料未能更新；有舊資料的路線會保留上次預報，請留意時間。</p>}
     {display.map((row, index) => {
       const saved = favourites.some(favourite => favouriteKey(favourite) === favouriteKey(row));

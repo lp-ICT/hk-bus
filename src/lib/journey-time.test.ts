@@ -84,3 +84,33 @@ test('a saved connecting leg pins the whole journey without changing general sea
   expect(sortJourneys([direct, transfer], now, [connection])[0]).toBe(transfer);
   expect(sortJourneys([direct, transfer], now)[0]).toBe(direct);
 });
+
+test('to-school pins the same route and direction from different boarding stops', () => {
+  const fast = timed({ ...base, route: { ...base.route, route: '2' }, rideMinutes: 1 });
+  const slowSaved = timed({ ...base, rideMinutes: 30 });
+  const fastSaved = timed({ ...base, rideMinutes: 10 });
+  const saved = { ...base, stop: { ...base.stop, id: 'another-stop', seq: 8 } };
+  expect(sortJourneys([fast, slowSaved, fastSaved], now, [saved], true)).toEqual([fastSaved, slowSaved, fast]);
+  for (const route of [{ ...base.route, bound: 'I' }, { ...base.route, company: 'GMB' as const }, { ...base.route, route: '3' }]) {
+    expect(sortJourneys([fast, slowSaved], now, [{ ...saved, route }], true)).toEqual([fast, slowSaved]);
+  }
+  expect(sortJourneys([fast, slowSaved], now, [saved])).toEqual([fast, slowSaved]);
+});
+
+test('to-school pins a saved connecting route from another stop', () => {
+  const direct = timed({ ...base, rideMinutes: 1 });
+  const connection = { ...base, route: { ...base.route, route: '3' } };
+  const transfer = timed({ ...base, transfer: { leg: connection, meters: 0 } });
+  transfer.legArrivals = [[eta(5)], [eta(20)]];
+  const saved = { ...connection, stop: { ...connection.stop, id: 'other', seq: 5 } };
+  expect(sortJourneys([direct, transfer], now, [saved], true)[0]).toBe(transfer);
+});
+
+test('to-school keeps minibus route IDs separate when numbers and directions coincide', () => {
+  const minibus = { ...base, route: { ...base.route, company: 'GMB' as const, route: '1', bound: '1', service: '1001' } };
+  const savedSlow = timed({ ...minibus, rideMinutes: 30 });
+  const fast = timed({ ...base, rideMinutes: 1 });
+  const saved = { ...minibus, stop: { ...base.stop, id: 'other' } };
+  expect(sortJourneys([fast, savedSlow], now, [saved], true)[0]).toBe(savedSlow);
+  expect(sortJourneys([fast, savedSlow], now, [{ ...saved, route: { ...saved.route, service: '2001' } }], true)[0]).toBe(fast);
+});
