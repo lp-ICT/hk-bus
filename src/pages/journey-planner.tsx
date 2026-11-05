@@ -1,3 +1,4 @@
+import { googleTransitUrl } from '../lib/google-directions';
 import { usePageRefresh } from '../lib/page-refresh';
 import { useEffect, useRef, useState } from 'react';
 import { withJourneyTimes, estimateJourney, estimateClock, compareJourneyArrival, type TimedJourney } from '../lib/journey-time';
@@ -5,7 +6,7 @@ import { MapPin, Search, Star } from 'lucide-react';
 import { arrivalLabel, arrivalsFor, companyName, routeDescription, favouriteKey, noArrivalMessage, routeKey, type Arrival, type Favourite, type Route } from '../lib/bus';
 import { currentPlace, directJourneys, journeyLegs, journeyGraph, schoolPlace, schoolDestinationStops, searchPlaces, type Journey, type Place } from '../lib/journey';
 
-export function PlaceInput({ label, value, onChange }: { label: string; value: Place | null; onChange: (place: Place | null) => void }) {
+export function PlaceInput({ label, value, onChange, onTextChange }: { label: string; value: Place | null; onChange: (place: Place | null) => void; onTextChange?: (text: string) => void }) {
   const [text, setText] = useState(value?.name || '');
   const [matches, setMatches] = useState<Place[]>([]);
   const [showAllPlaces, setShowAllPlaces] = useState(false);
@@ -29,7 +30,7 @@ export function PlaceInput({ label, value, onChange }: { label: string; value: P
     finally { if (!controller.signal.aborted) setBusy(false); }
   }
   return <div className="journey-place">
-    <label className="journey-field"><span>{label}</span><input aria-label={label + '位置'} value={text} placeholder="輸入地點、地址或車站名稱" onChange={event => { request.current?.abort(); setBusy(false); setText(event.target.value); setMatches([]); setError(''); onChange(null); }} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void lookup(); } }} /></label>
+    <label className="journey-field"><span>{label}</span><input aria-label={label + '位置'} value={text} placeholder="輸入地點、地址或車站名稱" onChange={event => { request.current?.abort(); setBusy(false); setText(event.target.value); onTextChange?.(event.target.value); setMatches([]); setError(''); onChange(null); }} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void lookup(); } }} /></label>
     <button className="text-button" disabled={busy || !text.trim()} onClick={() => void lookup()}>{busy ? '正在查詢…' : '尋找' + label}</button>
     {value && <p className="place-selected">✓ 已選：{value.name}{value.detail ? ' · ' + value.detail : ''}</p>}
     {error && <p role="alert" className="error-text">{error}</p>}
@@ -151,6 +152,8 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
 export default function JourneyPlanner({ school = false, fromSchool = false, routes, loadingRoutes, position, favourites, onToggleFavourite, onSelect }: { school?: boolean; fromSchool?: boolean; routes: Route[]; loadingRoutes: boolean; position: { lat: number; lng: number } | null; favourites: Favourite[]; onToggleFavourite: (favourite: Favourite) => void; onSelect: (favourite: Favourite) => void }) {
   const [useGps, setUseGps] = useState(true);
   const [origin, setOrigin] = useState<Place | null>(null);
+  const [originText, setOriginText] = useState('');
+  const [destinationText, setDestinationText] = useState('');
   const [destination, setDestination] = useState<Place | null>(school ? schoolPlace : null);
   const [journeys, setJourneys] = useState<Journey[]>([]);
   const [busy, setBusy] = useState(false);
@@ -209,13 +212,20 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
   function clearResults() { requestId.current++; stopWorker.current?.(); setSearched(false); setJourneys([]); setBusy(false); setError(''); }
   async function refresh() { await find(useGps); }
   usePageRefresh(async () => { if (!busy && (searched || school)) await find(false); });
+  const mapsOrigin = fromSchool ? schoolPlace : useGps ? position ? { ...position, name: '目前位置' } : null : origin || originText;
+  const mapsDestination = school ? schoolPlace : destination || destinationText;
+  const mapsUrl = (fromSchool || useGps || origin || originText.trim()) ? googleTransitUrl(mapsOrigin, mapsDestination) : undefined;
   return <section aria-label={school ? '返學啦' : '起點及目的地搜尋'} className="journey-planner">
     {school && <h2 className="journey-heading">返學啦 · 聖公會李炳中學</h2>}
     <div className="journey-form">
       {!fromSchool && <label className="gps-choice"><input type="checkbox" checked={useGps} onChange={event => { setUseGps(event.target.checked); clearResults(); }} /><MapPin size={17} />以目前位置為起點</label>}
       {fromSchool && <p className="school-destination">起點：聖公會李炳中學</p>}
-      {!fromSchool && !useGps && <PlaceInput label="起點" value={origin} onChange={value => { setOrigin(value); clearResults(); }} />}
-      {school ? <p className="school-destination">目的地：聖公會李炳中學</p> : <PlaceInput label="目的地" value={destination} onChange={value => { setDestination(value); clearResults(); }} />}
+      {!fromSchool && !useGps && <PlaceInput label="起點" value={origin} onTextChange={setOriginText} onChange={value => { setOrigin(value); clearResults(); }} />}
+      {school ? <p className="school-destination">目的地：聖公會李炳中學</p> : <PlaceInput label="目的地" value={destination} onTextChange={setDestinationText} onChange={value => { setDestination(value); clearResults(); }} />}
+      <div className="google-directions">
+        {mapsUrl ? <a className="primary-button" href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin size={16} />用 Google 地圖查路線</a> : <button className="primary-button" disabled><MapPin size={16} />用 Google 地圖查路線</button>}
+        <p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p>
+      </div>
       <button className="primary-button" disabled={busy || loadingRoutes} onClick={() => { if (school) setRevision(value => value + 1); else void find(true); }}><Search size={16} />{busy ? '正在搜尋…' : '搜尋路線及轉車方案'}</button>
       <p className="list-note">配對九巴／龍運、綠色小巴及港鐵；比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p>
     </div>
