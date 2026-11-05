@@ -191,11 +191,11 @@ test('nearby opposite-direction direct service precedes a saved reverse detour w
   const saved = { route: reverseRoute, stop: { ...reverseBoard, id: 'another-stop' } };
   expect(sortJourneys([detour, direct], now, [saved], true)).toEqual([direct, detour]);
   const distant = { ...direct, stop: { ...board, lat: board.lat + 0.01 }, meters: 800 };
-  expect(sortJourneys([detour, distant], now, [saved], true)).toEqual([detour, distant]);
+  expect(sortJourneys([detour, distant], now, [saved], true)).toEqual([distant, detour]);
   const sameDirection = { ...direct, route: reverseRoute };
-  expect(sortJourneys([detour, sameDirection], now, [saved], true)).toEqual([detour, sameDirection]);
+  expect(sortJourneys([detour, sameDirection], now, [saved], true)).toEqual([sameDirection, detour]);
   const otherCompany = { ...direct, route: { ...directRoute, company: 'GMB' as const } };
-  expect(sortJourneys([detour, otherCompany], now, [saved], true)).toEqual([detour, otherCompany]);
+  expect(sortJourneys([detour, otherCompany], now, [saved], true)).toEqual([otherCompany, detour]);
 });
 
 test('Kwai Shing West 47X boards KW250 towards Chun Shek and reaches the school opposite stop', () => {
@@ -214,4 +214,10 @@ test('Kwai Shing West 47X boards KW250 towards Chun Shek and reaches the school 
   expect(results[0].stop.id).toBe('6BB872F7294FEB23');
   expect(results[0].alight.id).toBe('DEDD6247441C8C05');
   expect(results[0].meters).toBeLessThan(10);
+  const block10 = hkPlace('葵盛西邨第十座', 830709, 824537);
+  const fromBlock10 = directJourneys(routes, network, links, block10, schoolPlace, false, schoolDestinationStops(network));
+  expect(fromBlock10).toHaveLength(1);
+  expect(fromBlock10[0].route.to).toBe('秦石');
+  expect(fromBlock10[0].stop.id).toBe('6BB872F7294FEB23');
+  expect(fromBlock10[0].alight.id).toBe('DEDD6247441C8C05');
 });

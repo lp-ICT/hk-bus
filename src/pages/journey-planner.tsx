@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { withJourneyTimes, estimateJourney, estimateClock, compareJourneyArrival, type TimedJourney } from '../lib/journey-time';
 import { MapPin, Search, Star } from 'lucide-react';
 import { arrivalLabel, arrivalsFor, companyName, routeDescription, favouriteKey, noArrivalMessage, routeKey, type Arrival, type Favourite, type Route } from '../lib/bus';
-import { currentPlace, directJourneys, isReverseDetour, journeyLegs, journeyGraph, schoolPlace, schoolDestinationStops, searchPlaces, type Journey, type Place } from '../lib/journey';
+import { currentPlace, directJourneys, journeyLegs, journeyGraph, schoolPlace, schoolDestinationStops, searchPlaces, type Journey, type Place } from '../lib/journey';
 
 export function PlaceInput({ label, value, onChange }: { label: string; value: Place | null; onChange: (place: Place | null) => void }) {
   const [text, setText] = useState(value?.name || '');
@@ -46,18 +46,7 @@ export function matchesSavedJourney(row: Journey, favourites: Favourite[], match
 export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favourite[] = [], matchRouteDirection = false) {
   const first = (row: TimedJourney) => Math.min(...row.arrivals.filter(arrival => arrival.eta && Date.parse(arrival.eta) > now - 60000).map(arrival => Date.parse(arrival.eta!)));
   const saved = (row: TimedJourney) => matchesSavedJourney(row, favourites, matchRouteDirection);
-  const sorted = [...rows].sort((a, b) => Number(saved(b)) - Number(saved(a)) || compareJourneyArrival(a, b, now) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
-  for (const detour of [...sorted]) {
-    const direct = sorted.filter(row => isReverseDetour(row, detour));
-    for (const row of direct) {
-      const index = sorted.indexOf(row);
-      if (index > sorted.indexOf(detour)) {
-        sorted.splice(index, 1);
-        sorted.splice(sorted.indexOf(detour), 0, row);
-      }
-    }
-  }
-  return sorted;
+  return [...rows].sort((a, b) => Number(!!a.transfer) - Number(!!b.transfer) || Number(saved(b)) - Number(saved(a)) || compareJourneyArrival(a, b, now) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
 }
 const journeyKey = (journey: Journey) => journeyLegs(journey).map(leg => routeKey(leg.route) + '-' + leg.stop.id + '-' + leg.stop.seq + '-' + leg.alight.id + '-' + leg.alight.seq).join('/');
 
@@ -116,8 +105,8 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
   const display = sortJourneys(rows, now, prioritiseFavourites ? favourites : [], school);
   return <div className="journey-results">
     <div className="nearby-refresh"><span role="timer">{busy || refreshing ? '正在更新資料…' : '下次更新：' + Math.max(0, Math.ceil((due - now) / 1000)) + ' 秒'}</span><button className="primary-button" disabled={busy || refreshing} onClick={() => void onRefresh()}>立即更新</button></div>
-    {prioritiseFavourites && <p className="station-caption">{school ? '已收藏的同一路線及方向優先（不限上車站），組內按預計抵達時間排序。' : '已收藏的路線優先，組內按預計抵達時間排序。'}</p>}
-    {rows.some(row => rows.some(direct => isReverseDetour(direct, row))) && <p className="station-caption">同一路線另一方向可在附近上車直達時，先顯示直達方案；反方向轉車方案保留作比較，請留意預計抵達時間。</p>}
+    {prioritiseFavourites && <p className="station-caption">{school ? '直達及轉車各組內，已收藏的同一路線及方向優先（不限上車站），再按預計抵達時間排序。' : '直達及轉車各組內，已收藏的路線優先，再按預計抵達時間排序。'}</p>}
+    <p className="station-caption">先列直達方案，再列轉車方案；轉車可能較快，請比較預計抵達時間。</p>
     {rows.some(row => row.error) && <p className="data-warning" role="alert">部分到站資料未能更新；有舊資料的路線會保留上次預報，請留意時間。</p>}
     {display.map((row, index) => {
       const saved = favourites.some(favourite => favouriteKey(favourite) === favouriteKey(row));
@@ -125,7 +114,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
       const estimate = estimateJourney(row, now);
       const stale = !!row.updated && (row.error || now - row.updated > 90000);
       return <div key={journeyKey(row)}>
-        {school && (index === 0 || display[index - 1].nearby !== row.nearby) && <h3 className="journey-group">{row.nearby ? '由你附近出發 · 預計最快抵達優先' : '其他可到校路線 · 預計最快抵達優先'}</h3>}
+        {(index === 0 || !!display[index - 1].transfer !== !!row.transfer) && <h3 className="journey-group">{row.transfer ? '轉車方案' : '直達方案 · 毋須轉車'}</h3>}
         <div className="journey-estimate" aria-label="預計抵達目的地">
           {prioritiseFavourites && matchesSavedJourney(row, favourites, school) && <strong>★ 收藏優先</strong>}
           <strong>{estimate.arrival !== undefined ? '預計抵達約 ' + estimateClock(estimate.arrival) : '預計抵達：未能估算'}</strong>
@@ -153,7 +142,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
       </div>;
     })}
     {!journeys.length && <p className="empty-message">{'指定範圍內未找到直達或最多轉兩次車的方案，請改選起點或目的地。'}</p>}
-    <p className="list-note"><a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_23-routes-fares-geojson" target="_blank" rel="noreferrer">參考車程來源：運輸署</a>。{school ? '有起點時只配對 1 公里內上車的方案；無定位時僅列所有直達路線。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。抵達時間為估算，按運輸署全程參考車程分攤所搭路段；步行按每小時 4.5 公里及直線距離乘 1.3，每次轉車預留 2 分鐘。未計即時塞車及真實行人路線，不能保證銜接；缺資料的方案排後。候選搜尋不保證涵蓋所有路線。</p>
+    <p className="list-note"><a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_23-routes-fares-geojson" target="_blank" rel="noreferrer">參考車程來源：運輸署</a>。{school ? '有起點時只配對 1 公里內上車的方案；無定位時僅列所有直達路線。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。抵達時間為估算，按運輸署全程參考車程分攤所搭路段；步行按每小時 4.5 公里及直線距離乘 1.3，每次轉車預留 2 分鐘。未計即時塞車及真實行人路線，不能保證銜接；缺資料的方案在所屬組內排後。候選搜尋不保證涵蓋所有路線。</p>
   </div>;
 }
 
