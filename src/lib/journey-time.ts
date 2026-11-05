@@ -1,4 +1,4 @@
-import { routeKey, type Arrival } from './bus';
+import { distance, routeKey, type Arrival } from './bus';
 import type { Journey } from './journey';
 
 export type JourneyTimes = { version: number; snapshot_at: string; routes: Record<string, [number, number][]> };
@@ -15,7 +15,7 @@ export function withJourneyTimes(journey: Journey, times?: JourneyTimes): Journe
     return a[1] + (b[1] - a[1]) * (seq - a[0]) / (b[0] - a[0]);
   };
   const start = at(journey.stop.seq), end = at(journey.alight.seq);
-  return { ...journey, rideMinutes: start !== undefined && end !== undefined && end > start ? end - start : undefined, transfer: journey.transfer ? { ...journey.transfer, leg: withJourneyTimes(journey.transfer.leg, times) } : undefined };
+  return { ...journey, rideMinutes: journey.route.company === 'MTR' ? (distance(journey.stop.lat, journey.stop.lng, journey.alight) * 1.2 / 583 + (journey.alight.seq - journey.stop.seq) * 0.75) : start !== undefined && end !== undefined && end > start ? end - start : undefined, transfer: journey.transfer ? { ...journey.transfer, leg: withJourneyTimes(journey.transfer.leg, times) } : undefined };
 }
 export function estimateJourney(journey: TimedJourney, now: number): JourneyEstimate {
   const result: JourneyEstimate = { walking: 0, waiting: 0, riding: 0, legs: [] };
@@ -31,11 +31,12 @@ export function estimateJourney(journey: TimedJourney, now: number): JourneyEsti
     if (!Number.isFinite(leg.rideMinutes) || leg.rideMinutes! <= 0) return fail('第' + (index + 1) + '程未有可配對的參考車程');
     const walking = walkMinutes(index === 0 ? journey.meters : leg.meters);
     if (!Number.isFinite(walking) || walking < 0) return fail('步行距離資料不足');
-    ready += (walking + (index ? 2 : 0)) * 60000;
+    const buffer = leg.route.company === 'MTR' ? (index ? 5 : 3) : index ? 2 : 0;
+    ready += (walking + buffer) * 60000;
     const arrivals = journey.legArrivals?.[index] || (index === 0 ? journey.arrivals : []);
     const boarding = Math.min(...arrivals.filter(arrival => arrival.eta).map(arrival => Date.parse(arrival.eta!)).filter(time => Number.isFinite(time) && time >= ready));
     if (!Number.isFinite(boarding)) return fail(index ? '第' + (index + 1) + '程未有可接駁的到站預報' : '未有步行到站後可乘搭的預報');
-    const waiting = (boarding - ready) / 60000 + (index ? 2 : 0);
+    const waiting = (boarding - ready) / 60000 + buffer;
     const riding = leg.rideMinutes!;
     ready = boarding + riding * 60000;
     result.walking += walking; result.waiting += waiting; result.riding += riding;

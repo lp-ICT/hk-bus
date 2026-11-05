@@ -1,7 +1,17 @@
 export {};
 
-const gmbBuild = Bun.spawnSync(['python', 'scripts/build-gmb-data.py'], { stdout: 'inherit', stderr: 'inherit' });
-if (gmbBuild.exitCode !== 0) throw new Error('Cannot build official minibus metadata');
+const mtrBuild = Bun.spawnSync(['bun', 'scripts/build-mtr-data.ts'], { stdout: 'inherit', stderr: 'inherit' });
+if (mtrBuild.exitCode !== 0) throw new Error('Cannot build official MTR metadata');
+await Bun.write('dist/bus-data/mtr-network.json', Bun.file('public/bus-data/mtr-network.json'));
+
+if (process.env.USE_EXISTING_GMB === '1') {
+  const saved = await Bun.file('public/bus-data/gmb-network.json').json();
+  if (!saved.routes?.length || !saved.rows?.length || !saved.stops?.length || !Number.isFinite(Date.parse(saved.snapshot_at)) || Date.now() - Date.parse(saved.snapshot_at) > 86400000) throw new Error('Existing minibus snapshot is missing, invalid or older than 24 hours');
+  console.log('Preserving validated GMB snapshot: ' + saved.snapshot_at);
+} else {
+  const gmbBuild = Bun.spawnSync(['python', 'scripts/build-gmb-data.py'], { stdout: 'inherit', stderr: 'inherit' });
+  if (gmbBuild.exitCode !== 0) throw new Error('Cannot build official minibus metadata');
+}
 await Bun.write('dist/bus-data/gmb-network.json', Bun.file('public/bus-data/gmb-network.json'));
 
 

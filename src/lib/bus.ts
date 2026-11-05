@@ -1,10 +1,11 @@
+import { mtrNetwork, mtrRouteStops, mtrEntries, mtrArrivals } from './mtr';
 import { connectionReason, reportConnection } from './connection';
 
-export type Company = 'KMB' | 'CTB' | 'GMB';
+export type Company = 'KMB' | 'CTB' | 'GMB' | 'MTR';
 export type Route = { company: Company; route: string; bound: string; service: string; from: string; to: string; region?: string; description?: string };
 export type Stop = { id: string; name: string; lat: number; lng: number; seq: number; pickup?: boolean; dropoff?: boolean; etaAvailable?: boolean };
 export type Favourite = { route: Route; stop: Stop };
-export type Arrival = { eta: string | null; remark: string; seq: number };
+export type Arrival = { eta: string | null; remark: string; seq: number; destinationStopId?: string };
 const bases = { KMB: 'https://data.etabus.gov.hk/v1/transport/kmb', CTB: 'https://rt.data.gov.hk/v2/transport/citybus' };
 const memory = new Map<string, { at: number; value: unknown; backupAt?: string }>();
 const metadataFiles: Record<string, string> = {
@@ -87,9 +88,10 @@ export async function data<T>(url: string, cache = true): Promise<T> {
 
 export function routeKey(r: Route) { return `${r.company}-${r.route}-${r.bound}-${r.service}`; }
 export function favouriteKey(f: Favourite) { return `${routeKey(f.route)}-${f.stop.id}-${f.stop.seq}`; }
-export function companyName(c: Company) { return c === 'KMB' ? '九巴 / 龍運' : c === 'GMB' ? '綠色小巴' : '城巴'; }
+export function companyName(c: Company) { return c === 'MTR' ? '港鐵' : c === 'KMB' ? '九巴 / 龍運' : c === 'GMB' ? '綠色小巴' : '城巴'; }
 type Raw = Record<string, string | number>;
 export async function routesFor(company: Company): Promise<Route[]> {
+  if (company === 'MTR') return (await mtrNetwork()).routes;
   if (company === 'GMB') return (await gmbNetwork()).routes;
   const rows = await data<Raw[]>(`${bases[company]}/route/${company === 'CTB' ? 'CTB' : ''}`);
   return rows.flatMap(row => (company === 'CTB' ? ['O', 'I'] : [String(row.bound)]).map(bound => ({
@@ -113,6 +115,7 @@ export function searchStops(stops: Stop[], query: string): Stop[] {
 }
 
 export async function stopsFor(route: Route): Promise<Stop[]> {
+  if (route.company === 'MTR') return mtrRouteStops(await mtrNetwork(), route);
   if (route.company === 'GMB') {
     const network = await gmbNetwork();
     const stops = new Map(network.stops.map(stop => [stop.id, stop]));
@@ -135,7 +138,8 @@ export async function stopsFor(route: Route): Promise<Stop[]> {
   return result;
 }
 
-export async function arrivalsFor(route: Route, stop: Stop): Promise<Arrival[]> {
+export async function arrivalsFor(route: Route, stop: Stop, alight?: Stop): Promise<Arrival[]> {
+  if (route.company === 'MTR') return mtrArrivals(route, stop, alight);
   if (stop.etaAvailable === false) return [{ eta: null, remark: '此分站未有官方即時預報', seq: 1 }];
   if (route.company === 'GMB') {
     const result = await data<{ enabled: boolean; eta: { timestamp: string; remarks_tc: string | null; eta_seq: number }[] }>(`https://data.etagmb.gov.hk/eta/route-stop/${route.service}/${route.bound}/${stop.seq}`, false);
@@ -151,6 +155,7 @@ export async function arrivalsFor(route: Route, stop: Stop): Promise<Arrival[]> 
 }
 
 export async function routesAtStop(id: string, routes: Route[]): Promise<Favourite[]> {
+  if (id.startsWith('MTR:')) return mtrEntries(await mtrNetwork(), id, routes);
   if (id.startsWith('GMB:')) {
     const network = await gmbNetwork();
     const stop = network.stops.find(stop => stop.id === id);
@@ -201,7 +206,7 @@ export function schoolSideStops<T extends Stop>(stops: T[], side: 'entrance' | '
 export type NearbyArrival = Favourite & { meters: number; arrivals: Arrival[]; error: boolean };
 export async function nearbyArrivals(stop: Stop & { meters: number }, routes: Route[]): Promise<NearbyArrival[]> {
   const entries = await routesAtStop(stop.id, routes);
-  if (stop.id.startsWith('GMB:')) return Promise.all(entries.map(async entry => {
+  if (stop.id.startsWith('GMB:') || stop.id.startsWith('MTR:')) return Promise.all(entries.map(async entry => {
     try { return { ...entry, meters: stop.meters, arrivals: await arrivalsFor(entry.route, entry.stop), error: false }; }
     catch { return { ...entry, meters: stop.meters, arrivals: [], error: true }; }
   }));
@@ -222,7 +227,7 @@ export function sortNearby(rows: NearbyArrival[], now = Date.now()) {
 export function nearestRoutes(rows: NearbyArrival[]): NearbyArrival[] {
   const groups = new Map<string, NearbyArrival[]>();
   for (const row of rows) {
-    const key = `${row.route.company}-${row.route.route}-${row.route.bound}${row.route.company === 'GMB' ? '-' + row.route.service : ''}`;
+    const key = `${row.route.company}-${row.route.route}-${row.route.bound}${row.route.company === 'GMB' || row.route.company === 'MTR' ? '-' + row.route.service : ''}`;
     groups.set(key, [...(groups.get(key) || []), row]);
   }
   return [...groups.values()].map(group => {
@@ -268,16 +273,17 @@ export function gmbNetwork(): Promise<GmbNetwork> {
   return gmbRequest;
 }
 export async function allTransitStops(): Promise<Stop[]> {
-  const results = await Promise.allSettled([allKmbStops(), gmbNetwork().then(network => network.stops)]);
+  const results = await Promise.allSettled([allKmbStops(), gmbNetwork().then(network => network.stops), mtrNetwork().then(network => network.stops)]);
   if (results.every(result => result.status === 'rejected')) throw new Error('車站資料未能載入');
   return results.flatMap(result => result.status === 'fulfilled' ? result.value : []);
 }
 export function routeDescription(route: Route) {
+  if (route.company === 'MTR') return '港鐵 · ' + route.region;
   if (route.company === 'GMB') return ({ HKI: '港島', KLN: '九龍', NT: '新界' }[route.region || ''] || '') + (route.description && route.description !== '正常班次' ? ' · ' + route.description : '');
   return route.service !== '1' ? '特別班次 ' + route.service : '';
 }
 
 export function nearbyStops(stops: Stop[], lat: number, lng: number): (Stop & { meters: number })[] {
   const within = stops.filter(stop => !/城門隧道.*轉車站|SHING MUN TUNNELS.*INTERCHANGE/i.test(stop.name)).map(stop => ({ ...stop, meters: distance(lat, lng, stop) })).filter(stop => stop.meters <= 300).sort((a, b) => a.meters - b.meters);
-  return [...within.filter(stop => !stop.id.startsWith('GMB:')).slice(0, 20), ...within.filter(stop => stop.id.startsWith('GMB:')).slice(0, 20)];
+  return [...within.filter(stop => !stop.id.startsWith('GMB:') && !stop.id.startsWith('MTR:')).slice(0, 20), ...within.filter(stop => stop.id.startsWith('GMB:')).slice(0, 20), ...within.filter(stop => stop.id.startsWith('MTR:')).slice(0, 10)];
 }

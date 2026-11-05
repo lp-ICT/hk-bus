@@ -1,10 +1,11 @@
+import { mtrNetwork, transferWalk } from './mtr';
 import proj4 from 'proj4';
 import type { JourneyTimes } from './journey-time';
 import { allKmbStops, gmbNetwork, distance, routeKey, searchStops, type Favourite, type Route, type Stop } from './bus';
 
 export type Place = { name: string; lat: number; lng: number; detail?: string };
 export type Journey = Favourite & { alight: Stop; meters: number; endMeters: number; nearby: boolean; rideMinutes?: number; transfer?: { leg: Journey; meters: number } };
-export type RouteStop = { route: string; bound: string; service_type: string | number; stop: string; seq: string | number; company?: 'KMB' | 'GMB'; pickup?: boolean; dropoff?: boolean };
+export type RouteStop = { route: string; bound: string; service_type: string | number; stop: string; seq: string | number; company?: 'KMB' | 'GMB' | 'MTR'; pickup?: boolean; dropoff?: boolean };
 const hk80 = '+proj=tmerc +lat_0=22.3121333333333 +lon_0=114.178555555556 +k=1 +x_0=836694.05 +y_0=819069.8 +ellps=intl +towgs84=-162.619,-276.959,-161.764,-0.067753,2.243648,1.158828,-1.094246 +units=m +no_defs';
 export function hkPlace(name: string, x: number, y: number, detail?: string): Place {
   const [lng, lat] = proj4(hk80, 'EPSG:4326', [x, y]);
@@ -19,6 +20,10 @@ export function schoolDestinationStops(stops: Stop[]) {
 export async function searchPlaces(query: string, signal?: AbortSignal): Promise<Place[]> {
   const term = query.trim();
   if (!term) return [];
+  const railPlaces = await mtrNetwork().then(network => {
+    const alias = /迪士尼/.test(term) ? '迪士尼' : /海洋公園/.test(term) ? '海洋公園' : term.replace(/^港鐵/, '').replace(/站$/, '');
+    return network.stops.filter(stop => stop.name.includes(alias)).slice(0, 4).map(stop => ({ name: stop.name, lat: stop.lat, lng: stop.lng, detail: '港鐵站位置 · 景點請確認入口及步行路線' }));
+  }).catch(() => [] as Place[]);
   const controller = new AbortController();
   const abort = () => controller.abort();
   signal?.addEventListener('abort', abort, { once: true });
@@ -29,10 +34,11 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
     if (!response.ok) throw new Error('地點服務暫時未能連線');
     const rows = await response.json();
     if (!Array.isArray(rows)) throw new Error('地點資料格式不完整');
-    return rows.filter(row => Number.isFinite(row.x) && Number.isFinite(row.y))
-      .map(row => hkPlace(row.nameZH || row.nameEN, row.x, row.y, [row.districtZH, row.addressZH].filter(Boolean).join(' · '))).slice(0, 12);
+    return [...railPlaces, ...rows.filter(row => Number.isFinite(row.x) && Number.isFinite(row.y))
+      .map(row => hkPlace(row.nameZH || row.nameEN, row.x, row.y, [row.districtZH, row.addressZH].filter(Boolean).join(' · ')))].slice(0, 12);
   } catch (error) {
     if (signal?.aborted) throw error;
+    if (railPlaces.length) return railPlaces;
     const stops = searchStops(await allKmbStops(), term).slice(0, 12);
     if (!stops.length) throw new Error('未能查詢地點，請重試或輸入巴士站名稱。');
     return stops.map(stop => ({ ...stop, detail: '巴士站位置 · ' + stop.id }));
@@ -54,14 +60,14 @@ export function journeyGraph() {
         if (responses.some(response => !response.ok)) throw new Error('車站及路線資料未能載入');
         const [stops, routeStops] = await Promise.all(responses.map(response => response.json()));
         if (!Array.isArray(stops.data) || !stops.data.length || !Array.isArray(routeStops.data) || !routeStops.data.length || !Number.isFinite(Date.parse(routeStops.snapshot_at))) throw new Error('車站及路線資料不完整');
-        const gmb = await gmbNetwork();
+        const [gmb, mtr] = await Promise.all([gmbNetwork(), mtrNetwork()]);
         let times: JourneyTimes | undefined;
         try {
           const response = await fetch(base + 'bus-data/journey-times.json', { signal: controller.signal });
           const value = response.ok ? await response.json() : null;
           if (value?.version === 1 && value.routes && typeof value.routes === 'object') times = value;
         } catch {}
-        return { stops: [...gmb.stops, ...stops.data.map((row: Record<string, string>) => ({ id: row.stop, name: row.name_tc, lat: Number(row.lat), lng: Number(row.long), seq: 0 }))], rows: [...routeStops.data as RouteStop[], ...gmb.rows], snapshotAt: routeStops.snapshot_at as string, times };
+        return { stops: [...mtr.stops, ...gmb.stops, ...stops.data.map((row: Record<string, string>) => ({ id: row.stop, name: row.name_tc, lat: Number(row.lat), lng: Number(row.long), seq: 0 }))], rows: [...routeStops.data as RouteStop[], ...gmb.rows, ...mtr.rows], snapshotAt: routeStops.snapshot_at as string, times };
       } finally { clearTimeout(timer); }
     })().catch(error => { graphRequest = undefined; throw error; });
   }
@@ -101,7 +107,7 @@ export function directJourneys(routes: Route[], stops: Stop[], rows: RouteStop[]
   }
   const nearest = new Map<string, Journey>();
   for (const journey of results) {
-    const key = journey.route.company + '-' + journey.route.route + '-' + journey.route.bound + (journey.route.company === 'GMB' ? '-' + journey.route.service : '');
+    const key = journey.route.company + '-' + journey.route.route + '-' + journey.route.bound + (journey.route.company === 'GMB' || journey.route.company === 'MTR' ? '-' + journey.route.service : '');
     const previous = nearest.get(key);
     if (!previous || journey.meters < previous.meters || journey.meters === previous.meters && Number(journey.route.service) < Number(previous.route.service)) nearest.set(key, journey);
   }
@@ -117,6 +123,16 @@ export function currentPlace(): Promise<Place> {
 
 export function journeyLegs(journey: Journey): Journey[] {
   return [journey, ...(journey.transfer ? journeyLegs(journey.transfer.leg) : [])];
+}
+
+function diverseCandidates<T>(options: T[], limit: number, journey: (option: T) => Journey): T[] {
+  const railOnly = options.find(option => journeyLegs(journey(option)).every(leg => leg.route.company === 'MTR'));
+  const mixed = options.find(option => { const legs = journeyLegs(journey(option)); return legs.some(leg => leg.route.company === 'MTR') && legs.some(leg => leg.route.company !== 'MTR'); });
+  const reserved = [railOnly, mixed].filter((value): value is T & {} => value !== undefined);
+  const selected = options.slice(0, Math.max(0, limit - reserved.length));
+  for (const value of reserved) if (!selected.includes(value)) selected.push(value);
+  for (const value of options) if (selected.length < limit && !selected.includes(value)) selected.push(value);
+  return options.filter(value => selected.includes(value));
 }
 
 export function planJourneys(routes: Route[], stops: Stop[], rows: RouteStop[], origin: Place, destination: Place, alightingIds?: string[], preferredRoutes: Route[] = []) {
@@ -175,11 +191,11 @@ export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop
         if (exit.dropoff === false) continue;
         const x = Math.floor(exit.lat / 0.003), y = Math.floor(exit.lng / 0.003);
         const matches: { leg: Journey; meters: number }[] = [];
-        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) {
           for (const tail of buckets.get(`${x + dx},${y + dy}`) || []) {
             if (metadata.get(tail)!.identities.has(identity(route))) continue;
-            const walk = distance(exit.lat, exit.lng, tail.stop);
-            if (walk > 200 || (restricted(exit) || restricted(tail.stop)) && exit.id !== tail.stop.id) continue;
+            const walk = transferWalk(exit, tail.stop, distance(exit.lat, exit.lng, tail.stop));
+            if (walk === null || (restricted(exit) || restricted(tail.stop)) && exit.id !== tail.stop.id) continue;
             matches.push({ leg: tail, meters: walk });
           }
         }
@@ -189,7 +205,7 @@ export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop
       for (const stop of [...ordered].reverse()) {
         if (stop.pickup !== false && (transfers !== 2 || !restricted(stop) && distance(origin.lat, origin.lng, stop) <= 1000)) {
           const options = [...suffixes.values()].map(choices => choices.find(value => value.exit.id !== stop.id)).filter((choice): choice is NonNullable<typeof choice> => !!choice).sort((a, b) => Number(preferred(b.transfer.leg)) - Number(preferred(a.transfer.leg)) || a.cost - b.cost);
-          for (const choice of includeTwo ? options.slice(0, 8) : options) {
+          for (const choice of includeTwo ? diverseCandidates(options, 8, choice => choice.transfer.leg) : options) {
             const candidate: Journey = { route, stop, alight: choice.exit, meters: 0, endMeters: choice.transfer.leg.endMeters, nearby: true, transfer: choice.transfer };
             next.push(candidate);
           }
@@ -215,7 +231,8 @@ export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop
       if (!previous || meters + score(candidate) < previous.meters + score(previous)) reachable.set(key, candidate);
     }
     if (reachable.size) {
-      const options = [...reachable.values()].sort((a, b) => Number(preferred(b)) - Number(preferred(a)) || a.meters + score(a) - b.meters - score(b)).slice(0, 12);
+      const ranked = [...reachable.values()].sort((a, b) => Number(preferred(b)) - Number(preferred(a)) || a.meters + score(a) - b.meters - score(b));
+      const options = diverseCandidates(ranked, 12, journey => journey);
       if (!includeTwo) return options;
       alternatives.push(...options);
     }

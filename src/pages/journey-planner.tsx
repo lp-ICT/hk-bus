@@ -68,8 +68,8 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
         const updated = new Map<string, TimedJourney>();
         const forecasts = new Map<string, Promise<Arrival[]>>();
         const forecast = (leg: Journey) => {
-          const key = favouriteKey(leg);
-          if (!forecasts.has(key)) forecasts.set(key, arrivalsFor(leg.route, leg.stop));
+          const key = favouriteKey(leg) + (leg.route.company === 'MTR' ? '-' + leg.alight.id : '');
+          if (!forecasts.has(key)) forecasts.set(key, arrivalsFor(leg.route, leg.stop, leg.alight));
           return forecasts.get(key)!;
         };
         for (let offset = 0; offset < journeys.length; offset += 5) {
@@ -123,8 +123,8 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
         </div>
         <article className="arrival-choice"><button className="route-card" onClick={() => onSelect(row)}>
           <span className={"route-number " + row.route.company.toLowerCase()}>{row.route.route}</span>
-          <span className="route-body"><strong>{row.transfer ? "第一程 · " : ""}往 {row.route.to}</strong><small className="route-company">{companyName(row.route.company)} · {routeDescription(row.route)}</small><span className="route-origin">上車：{row.stop.name}{Number.isFinite(row.meters) ? ' · 步行約 ' + Math.round(row.meters) + ' 米（直線）' : ''}</span><span className="route-origin">落車：{row.alight.name}{!row.transfer && ' · 步行至目的地約 ' + Math.round(row.endMeters) + ' 米（直線）'}</span>{row.route.company !== 'GMB' && row.route.service !== '1' && <small className="route-company">特別班次 {row.route.service}</small>}<small className={stale || row.error ? 'data-warning' : 'route-company'}>{row.updated ? '上次成功更新 ' + new Date(row.updated).toLocaleTimeString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour12: false }) + (stale ? ' · 舊資料，請更新後確認' : '') : row.error ? '到站資料未能取得' : '正在查詢到站時間…'}</small></span>
-          <span className="nearby-times">{arrivals.length ? arrivals.map((arrival, i) => <span key={i}><small>{['下一班', '第二班', '第三班'][i]}</small><strong>{arrivalLabel(arrival.eta, now)}</strong></span>) : <strong>{row.error ? '查詢失敗' : !row.updated ? '查詢中…' : noArrivalMessage(row.arrivals)}</strong>}</span>
+          <span className="route-body"><strong>{row.transfer ? "第一程 · " : ""}往 {row.route.to}</strong><small className="route-company">{companyName(row.route.company)} · {routeDescription(row.route)}</small><span className="route-origin">上車：{row.stop.name}{Number.isFinite(row.meters) ? ' · 步行約 ' + Math.round(row.meters) + ' 米（直線）' : ''}</span><span className="route-origin">落車：{row.alight.name}{!row.transfer && ' · 步行至目的地約 ' + Math.round(row.endMeters) + ' 米（直線）'}</span>{row.route.company !== 'GMB' && row.route.company !== 'MTR' && row.route.service !== '1' && <small className="route-company">特別班次 {row.route.service}</small>}<small className={stale || row.error ? 'data-warning' : 'route-company'}>{row.updated ? '上次成功更新 ' + new Date(row.updated).toLocaleTimeString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour12: false }) + (stale ? ' · 舊資料，請更新後確認' : '') : row.error ? '到站資料未能取得' : '正在查詢到站時間…'}</small></span>
+          <span className="nearby-times">{arrivals.length ? arrivals.map((arrival, i) => <span key={i}><small>{['下一班', '第二班', '第三班'][i]}</small><strong>{arrivalLabel(arrival.eta, now)}</strong>{row.route.company === 'MTR' && <small>{arrival.remark}</small>}</span>) : <strong>{row.error ? '查詢失敗' : !row.updated ? '查詢中…' : noArrivalMessage(row.arrivals)}</strong>}</span>
         </button><button className={'icon-button quick-save ' + (saved ? 'saved' : '')} aria-label={(saved ? '取消收藏' : '收藏') + row.route.route + ' ' + row.stop.name} onClick={() => onToggleFavourite(row)}><Star size={18} fill={saved ? 'currentColor' : 'none'} /></button></article>
         {journeyLegs(row).slice(1).map((leg, legIndex) => {
           const previous = journeyLegs(row)[legIndex];
@@ -135,14 +135,14 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
             <button className="route-card" onClick={() => onSelect(leg)}>
               <span className={'route-number ' + leg.route.company.toLowerCase()}>{leg.route.route}</span>
               <span className="route-body"><strong>第{legIndex + 2}程 · 往 {leg.route.to}</strong><small>{companyName(leg.route.company)} · {routeDescription(leg.route)}</small><span className="route-origin">上車：{leg.stop.name}</span><span className="route-origin">落車：{leg.alight.name}{!leg.transfer && ' · 步行至目的地約 ' + Math.round(row.endMeters) + ' 米（直線）'}</span><small className={stale || row.error ? 'data-warning' : 'route-company'}>{row.error ? '更新失敗，請留意舊資料' : '轉車站目前預報，並非你抵達後的班次'}</small></span>
-              <span className="nearby-times">{upcoming.length ? upcoming.map((arrival, i) => <span key={i}><small>{['下一班', '第二班', '第三班'][i]}</small><strong>{arrivalLabel(arrival.eta, now)}</strong></span>) : <strong>{row.error ? '查詢失敗' : !row.updated ? '查詢中…' : noArrivalMessage(times)}</strong>}</span>
+              <span className="nearby-times">{upcoming.length ? upcoming.map((arrival, i) => <span key={i}><small>{['下一班', '第二班', '第三班'][i]}</small><strong>{arrivalLabel(arrival.eta, now)}</strong>{leg.route.company === 'MTR' && <small>{arrival.remark}</small>}</span>) : <strong>{row.error ? '查詢失敗' : !row.updated ? '查詢中…' : noArrivalMessage(times)}</strong>}</span>
             </button>
           </div>;
         })}
       </div>;
     })}
     {!journeys.length && <p className="empty-message">{'指定範圍內未找到直達或最多轉兩次車的方案，請改選起點或目的地。'}</p>}
-    <p className="list-note"><a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_23-routes-fares-geojson" target="_blank" rel="noreferrer">參考車程來源：運輸署</a>。{school ? '有起點時只配對 1 公里內上車的方案；無定位時僅列所有直達路線。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。抵達時間為估算，按運輸署全程參考車程分攤所搭路段；步行按每小時 4.5 公里及直線距離乘 1.3，每次轉車預留 2 分鐘。未計即時塞車及真實行人路線，不能保證銜接；缺資料的方案在所屬組內排後。候選搜尋不保證涵蓋所有路線。</p>
+    <p className="list-note"><a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_23-routes-fares-geojson" target="_blank" rel="noreferrer">參考車程來源：運輸署</a>。{school ? '有起點時只配對 1 公里內上車的方案；無定位時僅列所有直達路線。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。抵達時間為估算，按運輸署全程參考車程分攤所搭路段；步行按每小時 4.5 公里及直線距離乘 1.3，一般轉車預留 2 分鐘；港鐵首次入站另加 3 分鐘、轉乘入站或轉綫另加 5 分鐘。港鐵車程按站距（乘 1.2）、每小時 35 公里及每站 45 秒粗略估算，並非港鐵官方行車時間。未計即時塞車及真實行人路線，不能保證銜接；缺資料的方案在所屬組內排後。候選搜尋不保證涵蓋所有路線。</p>
   </div>;
 }
 
@@ -180,7 +180,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
         }
       }
       if (!school && !start) throw new Error('請先尋找並選擇起點。');
-      if (!routes.some(route => route.company === 'KMB')) throw new Error('九巴／龍運路線資料未能載入，請稍後重試。');
+      if (!routes.some(route => route.company !== 'CTB')) throw new Error('交通路線資料未能載入，請稍後重試。');
       const graph = await journeyGraph();
       if (!mounted.current || id !== requestId.current) return;
       const destinationIds = school ? schoolDestinationStops(graph.stops) : undefined;
@@ -215,12 +215,12 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
       {!fromSchool && !useGps && <PlaceInput label="起點" value={origin} onChange={value => { setOrigin(value); clearResults(); }} />}
       {school ? <p className="school-destination">目的地：聖公會李炳中學</p> : <PlaceInput label="目的地" value={destination} onChange={value => { setDestination(value); clearResults(); }} />}
       <button className="primary-button" disabled={busy || loadingRoutes} onClick={() => { if (school) setRevision(value => value + 1); else void find(true); }}><Search size={16} />{busy ? '正在搜尋…' : '搜尋路線及轉車方案'}</button>
-      <p className="list-note">配對九巴／龍運及綠色小巴；比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p>
+      <p className="list-note">配對九巴／龍運、綠色小巴及港鐵；比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p>
     </div>
     {error && <p className="data-warning" role="alert">{error}<button className="text-button" disabled={busy || loadingRoutes} onClick={() => void find(true)}>重試</button></p>}
     {loadingRoutes && <p className="loading-message">正在載入路線資料…</p>}
     {busy && !searched && <p className="loading-message">正在配對上落車站…</p>}
-    {searched && journeys.some(journey => journey.transfer) && <p className="data-warning">以下包括轉車候選方案（最多兩次）。按預計抵達目的地排序；轉車距離為直線估算，請確認行人通道。後續各程仍顯示車站目前預報；估算只選步行及前段車程後可接駁的預報，不能保證銜接。</p>}
+    {searched && journeys.some(journey => journey.transfer) && <p className="data-warning">以下包括轉車候選方案（最多兩次）。按預計抵達目的地排序；轉車距離為直線估算，一般最多 200 米、涉及港鐵最多 400 米；中環／香港及尖沙咀／尖東另按已知站內連接處理。請確認行人通道。後續各程仍顯示車站目前預報；估算只選步行及前段車程後可接駁的預報，不能保證銜接。</p>}
     {searched && <JourneyResults journeys={journeys} school={school} prioritiseFavourites={school || fromSchool} refreshing={busy} onRefresh={refresh} favourites={favourites} onToggleFavourite={onToggleFavourite} onSelect={onSelect} />}
     {snapshot && searched && <p className="list-note">路線及車站資料日期：{new Date(snapshot).toLocaleDateString('zh-HK', { timeZone: 'Asia/Hong_Kong' })} · 到站預報另行即時查詢</p>}
   </section>;
