@@ -1,5 +1,5 @@
-const CACHE = 'bus-shell-2e9f5c4812ca';
-const FILES = ["/","/share-qr.png","/school-crest.png","/manifest.webmanifest","/icons/icon-192.png","/icons/icon-512.png","/icons/maskable-512.png","/icons/apple-touch-icon.png","/assets/index-G2Q2AhLH.css","/assets/index-BVme_iqE.js","/assets/journey-worker-DkTA9jzi.js","/bus-data/gmb-network.json","/bus-data/mtr-network.json","/bus-data/resident-network.json","/bus-data/kmb-routes.json","/bus-data/kmb-stops.json","/bus-data/kmb-route-stops.json","/bus-data/ctb-routes.json","/bus-data/journey-times.json"];
+const CACHE = 'bus-shell-28e6f7526db2';
+const FILES = ["/","/share-qr.png","/school-crest.png","/manifest.webmanifest","/icons/icon-192.png","/icons/icon-512.png","/icons/maskable-512.png","/icons/apple-touch-icon.png","/assets/index-BWQy3-ZD.css","/assets/index-qfeMDQGe.js","/assets/journey-worker-DkTA9jzi.js","/bus-data/gmb-network.json","/bus-data/mtr-network.json","/bus-data/resident-network.json","/bus-data/kmb-routes.json","/bus-data/kmb-stops.json","/bus-data/kmb-route-stops.json","/bus-data/ctb-routes.json","/bus-data/journey-times.json"];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('bus-shell-') && key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', event => {
