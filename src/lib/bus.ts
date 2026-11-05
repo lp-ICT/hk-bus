@@ -174,7 +174,7 @@ export async function routesAtStop(id: string, routes: Route[]): Promise<Favouri
   });
 }
 
-export function distance(lat: number, lng: number, stop: Stop) {
+export function distance(lat: number, lng: number, stop: Pick<Stop, 'lat' | 'lng'>) {
   if ((!stop.lat && !stop.lng) || (!lat && !lng)) return Infinity;
   const rad = (v: number) => v * Math.PI / 180;
   const a = Math.sin(rad(stop.lat - lat) / 2) ** 2 + Math.cos(rad(lat)) * Math.cos(rad(stop.lat)) * Math.sin(rad(stop.lng - lng) / 2) ** 2;

@@ -8,6 +8,7 @@ import { currentPlace, directJourneys, journeyLegs, journeyGraph, schoolPlace, s
 export function PlaceInput({ label, value, onChange }: { label: string; value: Place | null; onChange: (place: Place | null) => void }) {
   const [text, setText] = useState(value?.name || '');
   const [matches, setMatches] = useState<Place[]>([]);
+  const [showAllPlaces, setShowAllPlaces] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const request = useRef<AbortController | null>(null);
@@ -17,7 +18,7 @@ export function PlaceInput({ label, value, onChange }: { label: string; value: P
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
-    setBusy(true); setError(''); setMatches([]);
+    setBusy(true); setError(''); setMatches([]); setShowAllPlaces(false);
     try {
       const results = await searchPlaces(text, controller.signal);
       if (!controller.signal.aborted) {
@@ -32,7 +33,8 @@ export function PlaceInput({ label, value, onChange }: { label: string; value: P
     <button className="text-button" disabled={busy || !text.trim()} onClick={() => void lookup()}>{busy ? '正在查詢…' : '尋找' + label}</button>
     {value && <p className="place-selected">✓ 已選：{value.name}{value.detail ? ' · ' + value.detail : ''}</p>}
     {error && <p role="alert" className="error-text">{error}</p>}
-    {!!matches.length && <div className="place-options" aria-label={label + '地點選擇'}>{matches.map((place, index) => <button key={place.name + index} onClick={() => { onChange(place); setText(place.name); setMatches([]); }}><strong>{place.name}</strong><small>{place.detail || '香港'}</small></button>)}</div>}
+    {!!matches.length && <div className="place-options" aria-label={label + '地點選擇'}>{(showAllPlaces ? matches : matches.slice(0, 6)).map((place, index) => <button key={place.name + index} onClick={() => { onChange(place); setText(place.name); setMatches([]); }}><strong>{place.name}</strong><small>{place.detail || '香港'}</small></button>)}</div>}
+    {matches.length > 6 && <button className="text-button" onClick={() => setShowAllPlaces(value => !value)}>{showAllPlaces ? '收起其他地點' : '顯示其他地點（' + (matches.length - 6) + '）'}</button>}
   </div>;
 }
 

@@ -1,9 +1,10 @@
+import { organisePlaces } from './place-results';
 import { mtrNetwork, transferWalk } from './mtr';
 import proj4 from 'proj4';
 import type { JourneyTimes } from './journey-time';
 import { allKmbStops, gmbNetwork, distance, routeKey, searchStops, type Favourite, type Route, type Stop } from './bus';
 
-export type Place = { name: string; lat: number; lng: number; detail?: string };
+export type Place = { name: string; lat: number; lng: number; detail?: string; railStationId?: string };
 export type Journey = Favourite & { alight: Stop; meters: number; endMeters: number; nearby: boolean; rideMinutes?: number; transfer?: { leg: Journey; meters: number } };
 export type RouteStop = { route: string; bound: string; service_type: string | number; stop: string; seq: string | number; company?: 'KMB' | 'GMB' | 'MTR'; pickup?: boolean; dropoff?: boolean };
 const hk80 = '+proj=tmerc +lat_0=22.3121333333333 +lon_0=114.178555555556 +k=1 +x_0=836694.05 +y_0=819069.8 +ellps=intl +towgs84=-162.619,-276.959,-161.764,-0.067753,2.243648,1.158828,-1.094246 +units=m +no_defs';
@@ -34,8 +35,8 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
     if (!response.ok) throw new Error('地點服務暫時未能連線');
     const rows = await response.json();
     if (!Array.isArray(rows)) throw new Error('地點資料格式不完整');
-    return [...railPlaces, ...rows.filter(row => Number.isFinite(row.x) && Number.isFinite(row.y))
-      .map(row => hkPlace(row.nameZH || row.nameEN, row.x, row.y, [row.districtZH, row.addressZH].filter(Boolean).join(' · ')))].slice(0, 12);
+    return organisePlaces(term, [...railPlaces, ...rows.filter(row => (row.nameZH || row.nameEN) && Number.isFinite(row.x) && Number.isFinite(row.y))
+      .map(row => hkPlace(row.nameZH || row.nameEN, row.x, row.y, [row.districtZH, row.addressZH].filter(Boolean).join(' · ')))]);
   } catch (error) {
     if (signal?.aborted) throw error;
     if (railPlaces.length) return railPlaces;
@@ -74,10 +75,14 @@ export function journeyGraph() {
   return graphRequest;
 }
 
+function destinationDistance(destination: Place, stop: Stop) {
+  return distance(destination.lat, destination.lng, stop) <= (destination.railStationId === stop.id ? 600 : 400);
+}
+
 export function directJourneys(routes: Route[], stops: Stop[], rows: RouteStop[], origin: Place | null, destination: Place, allToDestination = false, alightingIds?: string[]): Journey[] {
   const stopMap = new Map(stops.map(stop => [stop.id, stop]));
   const accessible = (stop: Stop, place: Place | null) => !/隧道轉車站|隧道收費廣場/.test(stop.name) || !!place?.name.includes('隧道');
-  const destinations = new Map(stops.filter(stop => alightingIds ? alightingIds.includes(stop.id) : accessible(stop, destination) && distance(destination.lat, destination.lng, stop) <= 400).map(stop => [stop.id, distance(destination.lat, destination.lng, stop)]));
+  const destinations = new Map(stops.filter(stop => alightingIds ? alightingIds.includes(stop.id) : accessible(stop, destination) && destinationDistance(destination, stop)).map(stop => [stop.id, distance(destination.lat, destination.lng, stop)]));
   const routeMap = new Map(routes.filter(route => route.company !== 'CTB').map(route => [routeKey(route), route]));
   const grouped = new Map<string, RouteStop[]>();
   for (const row of rows) {
@@ -128,7 +133,16 @@ export function journeyLegs(journey: Journey): Journey[] {
 function diverseCandidates<T>(options: T[], limit: number, journey: (option: T) => Journey): T[] {
   const railOnly = options.find(option => journeyLegs(journey(option)).every(leg => leg.route.company === 'MTR'));
   const mixed = options.find(option => { const legs = journeyLegs(journey(option)); return legs.some(leg => leg.route.company === 'MTR') && legs.some(leg => leg.route.company !== 'MTR'); });
-  const reserved = [railOnly, mixed].filter((value): value is T & {} => value !== undefined);
+  const railConnections = new Map<string, T>();
+  for (const option of options) {
+    const legs = journeyLegs(journey(option));
+    const rail = legs.filter(leg => leg.route.company === 'MTR');
+    if (rail.length < 2 || !legs.some(leg => leg.route.company !== 'MTR')) continue;
+    const key = rail.map(leg => leg.route.region + '-' + leg.route.bound).join('/');
+    if (!railConnections.has(key)) railConnections.set(key, option);
+    if (railConnections.size === 2) break;
+  }
+  const reserved = [...new Set([railOnly, mixed, ...railConnections.values()].filter((value): value is T & {} => value !== undefined))].slice(0, limit);
   const selected = options.slice(0, Math.max(0, limit - reserved.length));
   for (const value of reserved) if (!selected.includes(value)) selected.push(value);
   for (const value of options) if (selected.length < limit && !selected.includes(value)) selected.push(value);
@@ -152,7 +166,7 @@ export function transferJourneys(routes: Route[], stops: Stop[], rows: RouteStop
     grouped.get(key)!.push({ ...stop, seq: Number(row.seq), pickup: row.pickup, dropoff: row.dropoff, etaAvailable: row.company === 'GMB' ? Number.isInteger(Number(row.seq)) : undefined });
   }
   const restricted = (stop: Stop) => /隧道轉車站|隧道收費廣場/.test(stop.name);
-  const destinations = new Set(stops.filter(stop => alightingIds ? alightingIds.includes(stop.id) : !restricted(stop) && distance(destination.lat, destination.lng, stop) <= 400).map(stop => stop.id));
+  const destinations = new Set(stops.filter(stop => alightingIds ? alightingIds.includes(stop.id) : !restricted(stop) && destinationDistance(destination, stop)).map(stop => stop.id));
   const identity = (route: Route) => `${route.company}-${route.route}-${route.company === 'GMB' ? route.region + '-' + route.service : ''}`;
   const score = (journey: Journey): number => journey.endMeters + journeyLegs(journey).reduce((sum, leg) => sum + (leg.alight.seq - leg.stop.seq) * 80 + (leg.transfer?.meters || 0) * 3, 0);
   let tails: Journey[] = [];

@@ -99,3 +99,22 @@ test('dense bus candidates cannot crowd a valid pure rail transfer out of the re
   expect(results.some(journey => journey.transfer && journeyLegs(journey).every(leg => leg.route.company === 'MTR'))).toBe(true);
   expect(results.filter(journey => journeyLegs(journey).length === 2).length).toBeLessThanOrEqual(12);
 });
+
+test('school feeder plus two rail lines survives dense bus and single-line mixed candidates', () => {
+  const origin = { id: 'school', name: '學校', lat: station('TSW').lat + 0.015, lng: station('TSW').lng, seq: 0 };
+  const feeder: Route = { company: 'KMB', route: 'FEED', bound: 'O', service: '1', from: '學校', to: '荃灣' };
+  const buses = Array.from({ length: 20 }, (_, i): Route => ({ ...feeder, route: 'BUS' + i }));
+  const feederRows = [origin, station('TSW')].map((stop, i) => ({ company: 'KMB' as const, route: feeder.route, bound: 'O', service_type: '1', stop: stop.id, seq: i + 1 }));
+  const crowded = buses.flatMap(bus => [origin, station('ADM'), station('OCP')].map((stop, i) => ({ company: 'KMB' as const, route: bus.route, bound: 'O', service_type: '1', stop: stop.id, seq: i + 1 })));
+  const result = planJourneys([...buses, feeder, ...network.routes], [origin, ...network.stops], [...crowded, ...feederRows, ...network.rows], origin, station('OCP'));
+  expect(result.some(j => journeyLegs(j).map(leg => leg.route.route).join('/') === 'FEED/荃灣綫/南港島綫')).toBe(true);
+  expect(result.filter(j => journeyLegs(j).length === 3).length).toBeLessThanOrEqual(12);
+  expect(result.every(j => journeyLegs(j).length <= 3)).toBe(true);
+});
+
+test('identified park can use its nearby rail station without widening other destination limits', () => {
+  const destination = { name: '香港迪士尼樂園', lat: station('DIS').lat - 0.004, lng: station('DIS').lng, railStationId: 'MTR:DIS' };
+  const results = planJourneys(network.routes, network.stops, network.rows, station('TSW'), destination);
+  expect(results.some(j => journeyLegs(j).at(-1)?.alight.id === 'MTR:DIS')).toBe(true);
+  expect(planJourneys(network.routes, network.stops, network.rows, station('TSW'), { ...destination, railStationId: undefined })).toHaveLength(0);
+});
