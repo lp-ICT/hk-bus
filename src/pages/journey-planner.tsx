@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { withJourneyTimes, estimateJourney, estimateClock, compareJourneyArrival, type TimedJourney } from '../lib/journey-time';
 import { MapPin, Search, Star } from 'lucide-react';
 import { arrivalLabel, arrivalsFor, companyName, routeDescription, favouriteKey, noArrivalMessage, routeKey, type Arrival, type Favourite, type Route } from '../lib/bus';
-import { currentPlace, directJourneys, journeyLegs, journeyGraph, schoolPlace, schoolDestinationStops, searchPlaces, type Journey, type Place } from '../lib/journey';
+import { currentPlace, directJourneys, isReverseDetour, journeyLegs, journeyGraph, schoolPlace, schoolDestinationStops, searchPlaces, type Journey, type Place } from '../lib/journey';
 
 export function PlaceInput({ label, value, onChange }: { label: string; value: Place | null; onChange: (place: Place | null) => void }) {
   const [text, setText] = useState(value?.name || '');
@@ -46,7 +46,18 @@ export function matchesSavedJourney(row: Journey, favourites: Favourite[], match
 export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favourite[] = [], matchRouteDirection = false) {
   const first = (row: TimedJourney) => Math.min(...row.arrivals.filter(arrival => arrival.eta && Date.parse(arrival.eta) > now - 60000).map(arrival => Date.parse(arrival.eta!)));
   const saved = (row: TimedJourney) => matchesSavedJourney(row, favourites, matchRouteDirection);
-  return [...rows].sort((a, b) => Number(saved(b)) - Number(saved(a)) || compareJourneyArrival(a, b, now) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
+  const sorted = [...rows].sort((a, b) => Number(saved(b)) - Number(saved(a)) || compareJourneyArrival(a, b, now) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
+  for (const detour of [...sorted]) {
+    const direct = sorted.filter(row => isReverseDetour(row, detour));
+    for (const row of direct) {
+      const index = sorted.indexOf(row);
+      if (index > sorted.indexOf(detour)) {
+        sorted.splice(index, 1);
+        sorted.splice(sorted.indexOf(detour), 0, row);
+      }
+    }
+  }
+  return sorted;
 }
 const journeyKey = (journey: Journey) => journeyLegs(journey).map(leg => routeKey(leg.route) + '-' + leg.stop.id + '-' + leg.stop.seq + '-' + leg.alight.id + '-' + leg.alight.seq).join('/');
 
@@ -106,6 +117,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
   return <div className="journey-results">
     <div className="nearby-refresh"><span role="timer">{busy || refreshing ? '正在更新資料…' : '下次更新：' + Math.max(0, Math.ceil((due - now) / 1000)) + ' 秒'}</span><button className="primary-button" disabled={busy || refreshing} onClick={() => void onRefresh()}>立即更新</button></div>
     {prioritiseFavourites && <p className="station-caption">{school ? '已收藏的同一路線及方向優先（不限上車站），組內按預計抵達時間排序。' : '已收藏的路線優先，組內按預計抵達時間排序。'}</p>}
+    {rows.some(row => rows.some(direct => isReverseDetour(direct, row))) && <p className="station-caption">同一路線另一方向可在附近上車直達時，先顯示直達方案；反方向轉車方案保留作比較，請留意預計抵達時間。</p>}
     {rows.some(row => row.error) && <p className="data-warning" role="alert">部分到站資料未能更新；有舊資料的路線會保留上次預報，請留意時間。</p>}
     {display.map((row, index) => {
       const saved = favourites.some(favourite => favouriteKey(favourite) === favouriteKey(row));

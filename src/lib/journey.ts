@@ -119,6 +119,16 @@ export function journeyLegs(journey: Journey): Journey[] {
   return [journey, ...(journey.transfer ? journeyLegs(journey.transfer.leg) : [])];
 }
 
+export function isReverseDetour(direct: Journey, alternative: Journey) {
+  return !direct.transfer && !!alternative.transfer && direct.nearby && alternative.nearby &&
+    direct.route.company === alternative.route.company &&
+    direct.route.route.trim().toUpperCase() === alternative.route.route.trim().toUpperCase() &&
+    direct.route.bound !== alternative.route.bound &&
+    (direct.route.company !== 'GMB' || direct.route.service === alternative.route.service && direct.route.region === alternative.route.region) &&
+    direct.meters <= alternative.meters + 200 &&
+    distance(direct.stop.lat, direct.stop.lng, alternative.stop) <= 200;
+}
+
 export function planJourneys(routes: Route[], stops: Stop[], rows: RouteStop[], origin: Place, destination: Place, alightingIds?: string[], preferredRoutes: Route[] = []) {
   const direct = directJourneys(routes, stops, rows, origin, destination, false, alightingIds);
   return [...direct, ...transferJourneys(routes, stops, rows, origin, destination, alightingIds, true, preferredRoutes)];

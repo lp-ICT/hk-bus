@@ -178,3 +178,40 @@ test('school saved connecting routes survive candidate limits before final arriv
   const preferred = planJourneys([route, ...services], stops, links, start, end, ['C'], [services[13]]);
   expect(preferred.some(row => row.transfer?.leg.route.route === 'T13')).toBe(true);
 });
+
+test('nearby opposite-direction direct service precedes a saved reverse detour without hiding alternatives', () => {
+  const now = Date.now();
+  const directRoute = { ...route, route: '47X', bound: 'I', to: '秦石' };
+  const reverseRoute = { ...directRoute, bound: 'O', to: '葵盛(東)' };
+  const board = { ...stops[0], id: 'KW250', name: '葵盛西邨', lat: 22.361200, lng: 114.122477, seq: 3 };
+  const reverseBoard = { ...board, id: 'KW249', lat: 22.361199, lng: 114.122434, seq: 23 };
+  const alight = { ...stops[2], seq: 12 };
+  const direct = { route: directRoute, stop: board, alight, meters: 24, endMeters: 89, nearby: true, arrivals: [], updated: now, error: false };
+  const detour = { ...direct, route: reverseRoute, stop: reverseBoard, meters: 20, transfer: { leg: { ...direct, route: { ...route, route: '89' } }, meters: 130 } };
+  const saved = { route: reverseRoute, stop: { ...reverseBoard, id: 'another-stop' } };
+  expect(sortJourneys([detour, direct], now, [saved], true)).toEqual([direct, detour]);
+  const distant = { ...direct, stop: { ...board, lat: board.lat + 0.01 }, meters: 800 };
+  expect(sortJourneys([detour, distant], now, [saved], true)).toEqual([detour, distant]);
+  const sameDirection = { ...direct, route: reverseRoute };
+  expect(sortJourneys([detour, sameDirection], now, [saved], true)).toEqual([detour, sameDirection]);
+  const otherCompany = { ...direct, route: { ...directRoute, company: 'GMB' as const } };
+  expect(sortJourneys([detour, otherCompany], now, [saved], true)).toEqual([detour, otherCompany]);
+});
+
+test('Kwai Shing West 47X boards KW250 towards Chun Shek and reaches the school opposite stop', () => {
+  const origin = { name: '葵盛西邨', lat: 22.361199, lng: 114.122434 };
+  const network: Stop[] = [
+    { ...origin, id: 'FB948853081A003E', name: '葵盛西邨 (KW249)', seq: 23 },
+    { id: '6BB872F7294FEB23', name: '葵盛西邨 (KW250)', lat: 22.361200, lng: 114.122477, seq: 3 },
+    { id: 'DEDD6247441C8C05', name: '可風中學 (TW496)', lat: 22.380167, lng: 114.135129, seq: 12 },
+    { id: '0A1DAEAFFDFF0B66', name: '可風中學 (TW310)', lat: 22.380443, lng: 114.135135, seq: 10 },
+  ];
+  const routes = [{ ...route, route: '47X', bound: 'I', to: '秦石' }, { ...route, route: '47X', bound: 'O', to: '葵盛(東)' }];
+  const links = network.map((stop, i) => ({ route: '47X', bound: i === 1 || i === 2 ? 'I' : 'O', service_type: 1, stop: stop.id, seq: stop.seq }));
+  const results = directJourneys(routes, network, links, origin, schoolPlace, false, schoolDestinationStops(network));
+  expect(results).toHaveLength(1);
+  expect(results[0].route.to).toBe('秦石');
+  expect(results[0].stop.id).toBe('6BB872F7294FEB23');
+  expect(results[0].alight.id).toBe('DEDD6247441C8C05');
+  expect(results[0].meters).toBeLessThan(10);
+});
