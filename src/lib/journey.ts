@@ -143,7 +143,18 @@ function diverseCandidates<T>(options: T[], limit: number, journey: (option: T) 
     if (!railConnections.has(key)) railConnections.set(key, option);
     if (railConnections.size === 2) break;
   }
-  const reserved = [...new Set([railOnly, mixed, ...railConnections.values()].filter((value): value is T & {} => value !== undefined))].slice(0, limit);
+  const interchanges: T[] = [];
+  const special = (option: T) => journeyLegs(journey(option)).some(leg => /通宵|特別班次/.test((leg.route.description || '') + leg.route.to));
+  const interchange = (option: T) => { const leg = journey(option); return leg.transfer ? leg.alight : leg.stop; };
+  for (const option of options) {
+    const stop = interchange(option);
+    const index = interchanges.findIndex(other => distance(stop.lat, stop.lng, interchange(other)) <= 400);
+    if (index >= 0) {
+      const previous = interchanges[index]!;
+      if (Number(special(option)) < Number(special(previous)) || special(option) === special(previous) && journey(option).meters < journey(previous).meters) interchanges[index] = option;
+    } else if (interchanges.length < 4) interchanges.push(option);
+  }
+  const reserved = [...new Set([railOnly, mixed, ...railConnections.values(), ...interchanges].filter((value): value is T & {} => value !== undefined))].slice(0, limit);
   const selected = options.slice(0, Math.max(0, limit - reserved.length));
   for (const value of reserved) if (!selected.includes(value)) selected.push(value);
   for (const value of options) if (selected.length < limit && !selected.includes(value)) selected.push(value);

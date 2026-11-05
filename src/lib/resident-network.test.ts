@@ -2,7 +2,8 @@ import { expect, test } from 'bun:test';
 import snapshot from '../../public/bus-data/resident-network.json';
 import { residentRouteStops, type ResidentNetwork } from './resident-network';
 import { arrivalsFor, favouriteKey, nearbyStops } from './bus';
-import { directJourneys, planJourneys, journeyLegs } from './journey';
+import { directJourneys, planJourneys, journeyLegs, hkPlace, type RouteStop } from './journey';
+import gmbSnapshot from '../../public/bus-data/gmb-network.json';
 import { officialTimetableUrl } from './route-tools';
 import { estimateJourney } from './journey-time';
 import mtrSnapshot from '../../public/bus-data/mtr-network.json';
@@ -40,4 +41,30 @@ test('Park Island services connect to MTR at Tsing Yi in mixed transport plannin
   const destination = mtrSnapshot.stops.find(stop => stop.id === 'MTR:DIS')!;
   const journeys = planJourneys([...network.routes, ...mtrSnapshot.routes] as ResidentNetwork['routes'], [...network.stops, ...mtrSnapshot.stops], [...network.rows, ...mtrSnapshot.rows] as ResidentNetwork['rows'], origin, destination);
   expect(journeys.some(journey => { const legs = journeyLegs(journey); return legs[0].route.route === 'NR330' && legs.some(leg => leg.route.company === 'MTR'); })).toBe(true);
+});
+
+test('Ma Wan to Ho Chuen Yiu retains the ordinary Tsing Yi 330 to 312 connection among crowded Tsuen Wan alternatives', () => {
+  const origin = network.stops.find(stop => stop.id === 'RESIDENT:PI:12792')!;
+  const destination = hkPlace('荃灣公立何傳耀紀念中學', 831052, 826299);
+  const interchange = network.stops.find(stop => stop.id === 'RESIDENT:PI:12891')!;
+  const schoolStop = gmbSnapshot.stops.find(stop => stop.id === 'GMB:20011950')!;
+  const crowded = Array.from({ length: 20 }, (_, i) => ({ company: 'KMB' as const, route: 'C' + i, bound: 'O', service: '1', from: '荃灣', to: '石圍角' }));
+  const links: RouteStop[] = crowded.flatMap(route => [
+    { company: 'KMB', route: route.route, bound: route.bound, service_type: route.service, stop: interchange.id, seq: 1 },
+    { company: 'KMB', route: route.route, bound: route.bound, service_type: route.service, stop: schoolStop.id, seq: 2 },
+  ]);
+  const routes = [...crowded, ...network.routes, ...gmbSnapshot.routes] as ResidentNetwork['routes'];
+  const points = [...network.stops, ...gmbSnapshot.stops];
+  const rows = [...links, ...network.rows, ...gmbSnapshot.rows] as RouteStop[];
+  for (const from of [origin, network.stops.find(stop => stop.id === 'RESIDENT:PI:12783')!]) {
+    const found = planJourneys(routes, points, rows, from, destination);
+    const connection = found.find(journey => journey.route.route === 'NR330' && journey.route.bound === '1' && journey.transfer?.leg.route.route === '312' && !journey.transfer.leg.transfer);
+    expect(connection).toBeDefined();
+    expect(connection!.alight.id).toBe('RESIDENT:PI:13086');
+    expect(connection!.transfer!.leg.route.bound).toBe('2');
+    expect(connection!.transfer!.leg.alight.id).toBe(schoolStop.id);
+    expect(connection!.transfer!.meters).toBeLessThanOrEqual(200);
+    expect(found.filter(journey => journeyLegs(journey).length === 2).length).toBeLessThanOrEqual(12);
+    expect(found.every(journey => journeyLegs(journey).length <= 3)).toBe(true);
+  }
 });
