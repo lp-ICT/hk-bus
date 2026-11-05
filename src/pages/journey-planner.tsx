@@ -121,7 +121,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
   const display = sortJourneys(rows, now, prioritiseFavourites ? favourites : [], school);
   return <div className="journey-results">
     <div className="nearby-refresh"><span role="timer">{busy || refreshing ? '正在更新資料…' : '下次更新：' + Math.max(0, Math.ceil((due - now) / 1000)) + ' 秒'}</span><button className="primary-button" disabled={busy || refreshing} onClick={() => void onRefresh()}>立即更新</button></div>
-    <p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p>
+    {school ? <details className="journey-help"><summary>排序說明 ⓘ</summary><p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p></details> : <p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p>}
     {rows.some(row => row.error) && <p className="data-warning" role="alert">部分到站資料未能更新；有舊資料的路線會保留上次預報，請留意時間。</p>}
     {display.map(row => {
       const saved = favourites.some(favourite => favouriteKey(favourite) === favouriteKey(row));
@@ -157,7 +157,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
       </div>;
     })}
     {!journeys.length && <p className="empty-message">{'指定範圍內未找到直達或最多轉兩次車的方案，請改選起點或目的地。'}</p>}
-    <p className="list-note"><a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_23-routes-fares-geojson" target="_blank" rel="noreferrer">參考車程來源：運輸署</a>。{school ? '有起點時只配對 1 公里內上車的方案；無定位時僅列所有直達路線。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。抵達時間為估算，按運輸署全程參考車程分攤所搭路段；步行按每小時 4.5 公里及直線距離乘 1.3，一般轉車預留 2 分鐘；港鐵首次入站另加 3 分鐘、轉乘入站或轉綫另加 5 分鐘。港鐵車程按站距（乘 1.2）、每小時 35 公里及每站 45 秒粗略估算，並非港鐵官方行車時間。未計即時塞車及真實行人路線，不能保證銜接；缺資料的方案在所屬組內排後。候選搜尋不保證涵蓋所有路線。</p>
+    {school ? <details className="journey-help"><summary>估算方法及資料來源 ⓘ</summary><p className="list-note"><a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_23-routes-fares-geojson" target="_blank" rel="noreferrer">參考車程來源：運輸署</a>。{school ? '有起點時只配對 1 公里內上車的方案；無定位時僅列所有直達路線。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。抵達時間為估算，按運輸署全程參考車程分攤所搭路段；步行按每小時 4.5 公里及直線距離乘 1.3，一般轉車預留 2 分鐘；港鐵首次入站另加 3 分鐘、轉乘入站或轉綫另加 5 分鐘。港鐵車程按站距（乘 1.2）、每小時 35 公里及每站 45 秒粗略估算，並非港鐵官方行車時間。未計即時塞車及真實行人路線，不能保證銜接；缺資料的方案在所屬組內排後。候選搜尋不保證涵蓋所有路線。</p></details> : <p className="list-note"><a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_23-routes-fares-geojson" target="_blank" rel="noreferrer">參考車程來源：運輸署</a>。{school ? '有起點時只配對 1 公里內上車的方案；無定位時僅列所有直達路線。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。抵達時間為估算，按運輸署全程參考車程分攤所搭路段；步行按每小時 4.5 公里及直線距離乘 1.3，一般轉車預留 2 分鐘；港鐵首次入站另加 3 分鐘、轉乘入站或轉綫另加 5 分鐘。港鐵車程按站距（乘 1.2）、每小時 35 公里及每站 45 秒粗略估算，並非港鐵官方行車時間。未計即時塞車及真實行人路線，不能保證銜接；缺資料的方案在所屬組內排後。候選搜尋不保證涵蓋所有路線。</p>}
   </div>;
 }
 
@@ -246,14 +246,14 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
       {fromSchool && <p className="school-destination">起點：聖公會李炳中學</p>}
       {!fromSchool && !useGps && <PlaceInput label="起點" value={origin} onTextChange={setOriginText} onChange={value => { setOrigin(value); clearResults(); }} />}
       {school ? <p className="school-destination">目的地：聖公會李炳中學</p> : <PlaceInput label="目的地" value={destination} onTextChange={setDestinationText} onChange={value => { setDestination(value); clearResults(); }} />}
-      <div className="filter-row" aria-label="行程交通工具">{([{ id: 'all', name: '全部交通' }, { id: 'KMB', name: '九巴 / 龍運' }, { id: 'CTB', name: '城巴（暫未支援行程配對）' }, { id: 'RESIDENT', name: '居民巴士' }, { id: 'GMB', name: '綠色小巴' }, { id: 'MTR', name: '港鐵' }] as const).map(option => <button key={option.id} disabled={option.id === 'CTB'} aria-pressed={transport === option.id} className={transport === option.id ? 'chosen' : ''} onClick={() => { clearResults(); setTransport(option.id); }}>{option.name}</button>)}</div>
-      <p className="list-note">全部交通可混合轉車；選擇個別類別後，所有車程只使用該類交通工具。Google 地圖另行提供公共交通方案，不套用此篩選。</p>
+      <div className="filter-row" aria-label="行程交通工具">{([{ id: 'all', name: '全部交通' }, { id: 'KMB', name: '九巴 / 龍運' }, { id: 'CTB', name: '城巴（暫未支援行程配對）' }, { id: 'RESIDENT', name: '居民巴士' }, { id: 'GMB', name: '綠色小巴' }, { id: 'MTR', name: '港鐵' }] as const).filter(option => !school || option.id === 'all' || option.id === 'KMB' || option.id === 'GMB').map(option => <button key={option.id} disabled={option.id === 'CTB'} aria-pressed={transport === option.id} className={transport === option.id ? 'chosen' : ''} onClick={() => { clearResults(); setTransport(option.id); }}>{school && option.id === 'GMB' ? '小巴' : option.name}</button>)}</div>
+      {!school && <p className="list-note">全部交通可混合轉車；選擇個別類別後，所有車程只使用該類交通工具。Google 地圖另行提供公共交通方案，不套用此篩選。</p>}
       <div className="google-directions">
         {mapsUrl ? <a className="primary-button" href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin size={16} />用 Google 地圖查路線</a> : <button className="primary-button" disabled><MapPin size={16} />用 Google 地圖查路線</button>}
-        <p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p>
+        {!school && <p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p>}
       </div>
       <button className="primary-button" disabled={busy || loadingRoutes} onClick={() => { if (school) setRevision(value => value + 1); else void find(true); }}><Search size={16} />{busy ? '正在搜尋…' : '搜尋路線及轉車方案'}</button>
-      <p className="list-note">配對九巴／龍運、綠色小巴、港鐵及已收錄居民巴士；居民巴士未有即時預報，請核對官方時間表及服務時段。比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p>
+      {school ? <details className="journey-help"><summary>使用說明 ⓘ</summary><p className="list-note">全部交通可混合轉車；選擇個別類別後，所有車程只使用該類交通工具。Google 地圖另行提供公共交通方案，不套用此篩選。</p><p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p><p className="list-note">配對九巴／龍運、綠色小巴、港鐵及已收錄居民巴士；居民巴士未有即時預報，請核對官方時間表及服務時段。比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p></details> : <p className="list-note">配對九巴／龍運、綠色小巴、港鐵及已收錄居民巴士；居民巴士未有即時預報，請核對官方時間表及服務時段。比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p>}
     </div>
     {error && <p className="data-warning" role="alert">{error}<button className="text-button" disabled={busy || loadingRoutes} onClick={() => void find(true)}>重試</button></p>}
     {loadingRoutes && <p className="loading-message">正在載入路線資料…</p>}
