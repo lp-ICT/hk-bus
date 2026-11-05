@@ -49,7 +49,7 @@ export function matchesSavedJourney(row: Journey, favourites: Favourite[], match
 export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favourite[] = [], matchRouteDirection = false) {
   const first = (row: TimedJourney) => Math.min(...row.arrivals.filter(arrival => arrival.eta && Date.parse(arrival.eta) > now - 60000).map(arrival => Date.parse(arrival.eta!)));
   const saved = (row: TimedJourney) => matchesSavedJourney(row, favourites, matchRouteDirection);
-  return [...rows].sort((a, b) => Number(!!a.transfer) - Number(!!b.transfer) || Number(saved(b)) - Number(saved(a)) || compareJourneyArrival(a, b, now) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
+  return [...rows].sort((a, b) => compareJourneyArrival(a, b, now) || (estimateJourney(a, now).arrival === undefined && estimateJourney(b, now).arrival === undefined ? Number(!!a.transfer) - Number(!!b.transfer) : 0) || Number(saved(b)) - Number(saved(a)) || Number(!!a.transfer) - Number(!!b.transfer) || Number(b.nearby) - Number(a.nearby) || first(a) - first(b) || a.meters - b.meters || a.route.route.localeCompare(b.route.route, 'en', { numeric: true }));
 }
 const journeyKey = (journey: Journey) => journeyLegs(journey).map(leg => routeKey(leg.route) + '-' + leg.stop.id + '-' + leg.stop.seq + '-' + leg.alight.id + '-' + leg.alight.seq).join('/');
 
@@ -108,18 +108,17 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
   const display = sortJourneys(rows, now, prioritiseFavourites ? favourites : [], school);
   return <div className="journey-results">
     <div className="nearby-refresh"><span role="timer">{busy || refreshing ? '正在更新資料…' : '下次更新：' + Math.max(0, Math.ceil((due - now) / 1000)) + ' 秒'}</span><button className="primary-button" disabled={busy || refreshing} onClick={() => void onRefresh()}>立即更新</button></div>
-    {prioritiseFavourites && <p className="station-caption">{school ? '直達及轉車各組內，已收藏的同一路線及方向優先（不限上車站），再按預計抵達時間排序。' : '直達及轉車各組內，已收藏的路線優先，再按預計抵達時間排序。'}</p>}
-    <p className="station-caption">先列直達方案，再列轉車方案；轉車可能較快，請比較預計抵達時間。</p>
+    <p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p>
     {rows.some(row => row.error) && <p className="data-warning" role="alert">部分到站資料未能更新；有舊資料的路線會保留上次預報，請留意時間。</p>}
-    {display.map((row, index) => {
+    {display.map(row => {
       const saved = favourites.some(favourite => favouriteKey(favourite) === favouriteKey(row));
       const arrivals = row.arrivals.filter(arrival => arrival.eta && Date.parse(arrival.eta) > now - 60000).slice(0, 3);
       const estimate = estimateJourney(row, now);
       const stale = !!row.updated && (row.error || now - row.updated > 90000);
       return <div key={journeyKey(row)}>
-        {(index === 0 || !!display[index - 1].transfer !== !!row.transfer) && <h3 className="journey-group">{row.transfer ? '轉車方案' : '直達方案 · 毋須轉車'}</h3>}
+        <h3 className="journey-group">{row.transfer ? '轉車方案' : '直達方案 · 毋須轉車'}</h3>
         <div className="journey-estimate" aria-label="預計抵達目的地">
-          {prioritiseFavourites && matchesSavedJourney(row, favourites, school) && <strong>★ 收藏優先</strong>}
+          {prioritiseFavourites && matchesSavedJourney(row, favourites, school) && <strong>★ 已收藏</strong>}
           <strong>{estimate.arrival !== undefined ? '預計抵達約 ' + estimateClock(estimate.arrival) : '預計抵達：未能估算'}</strong>
           <span>{estimate.arrival !== undefined ? '全程約 ' + Math.ceil((estimate.arrival - now) / 60000) + ' 分鐘' : estimate.reason}</span>
           {estimate.arrival !== undefined && <details><summary>估算詳情</summary><p>步行約 {Math.ceil(estimate.walking)} 分鐘 · 候車及轉車緩衝約 {Math.ceil(estimate.waiting)} 分鐘 · 車程約 {Math.ceil(estimate.riding)} 分鐘</p>{estimate.legs.map((leg, i) => <p key={i}>第{i + 1}程：約 {estimateClock(leg.boarding)} 上車 → {estimateClock(leg.alighting)} 落車</p>)}</details>}
@@ -233,7 +232,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
     {loadingRoutes && <p className="loading-message">正在載入路線資料…</p>}
     {busy && !searched && <p className="loading-message">正在配對上落車站…</p>}
     {searched && journeys.some(journey => journey.transfer) && <p className="data-warning">以下包括轉車候選方案（最多兩次）。按預計抵達目的地排序；轉車距離為直線估算，一般最多 200 米、涉及港鐵最多 400 米；中環／香港及尖沙咀／尖東另按已知站內連接處理。請確認行人通道。後續各程仍顯示車站目前預報；估算只選步行及前段車程後可接駁的預報，不能保證銜接。</p>}
-    {searched && <JourneyResults journeys={journeys} school={school} prioritiseFavourites={school || fromSchool} refreshing={busy} onRefresh={refresh} favourites={favourites} onToggleFavourite={onToggleFavourite} onSelect={onSelect} />}
+    {searched && <JourneyResults journeys={journeys} school={school} prioritiseFavourites={true} refreshing={busy} onRefresh={refresh} favourites={favourites} onToggleFavourite={onToggleFavourite} onSelect={onSelect} />}
     {snapshot && searched && <p className="list-note">路線及車站資料日期：{new Date(snapshot).toLocaleDateString('zh-HK', { timeZone: 'Asia/Hong_Kong' })} · 到站預報另行即時查詢</p>}
   </section>;
 }

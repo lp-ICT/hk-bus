@@ -67,11 +67,11 @@ test('clock display uses Hong Kong time including day rollover', () => {
 });
 
 
-test('school favourites pin matching direction and boarding stop while retaining arrival ranking', () => {
+test('destination arrival precedes school favourites', () => {
   const fast = timed({ ...base, route: { ...base.route, route: '2' }, rideMinutes: 1 });
   const savedSlow = timed({ ...base, rideMinutes: 30 });
   const savedFast = timed({ ...base, rideMinutes: 10 });
-  expect(sortJourneys([fast, savedSlow, savedFast], now, [base])).toEqual([savedFast, savedSlow, fast]);
+  expect(sortJourneys([fast, savedSlow, savedFast], now, [base])).toEqual([fast, savedFast, savedSlow]);
   expect(sortJourneys([fast, savedSlow], now, [{ ...base, route: { ...base.route, bound: 'I' } }])).toEqual([fast, savedSlow]);
   expect(sortJourneys([fast, savedSlow], now, [{ ...base, stop: { ...base.stop, id: 'elsewhere' } }])).toEqual([fast, savedSlow]);
 });
@@ -85,12 +85,12 @@ test('saved transfers stay behind direct journeys in general destination search'
   expect(sortJourneys([direct, transfer], now)[0]).toBe(direct);
 });
 
-test('to-school pins the same route and direction from different boarding stops', () => {
+test('to-school matches favourites across stops without overriding faster arrivals', () => {
   const fast = timed({ ...base, route: { ...base.route, route: '2' }, rideMinutes: 1 });
   const slowSaved = timed({ ...base, rideMinutes: 30 });
   const fastSaved = timed({ ...base, rideMinutes: 10 });
   const saved = { ...base, stop: { ...base.stop, id: 'another-stop', seq: 8 } };
-  expect(sortJourneys([fast, slowSaved, fastSaved], now, [saved], true)).toEqual([fastSaved, slowSaved, fast]);
+  expect(sortJourneys([fast, slowSaved, fastSaved], now, [saved], true)).toEqual([fast, fastSaved, slowSaved]);
   for (const route of [{ ...base.route, bound: 'I' }, { ...base.route, company: 'GMB' as const }, { ...base.route, route: '3' }]) {
     expect(sortJourneys([fast, slowSaved], now, [{ ...saved, route }], true)).toEqual([fast, slowSaved]);
   }
@@ -111,7 +111,7 @@ test('to-school keeps minibus route IDs separate when numbers and directions coi
   const savedSlow = timed({ ...minibus, rideMinutes: 30 });
   const fast = timed({ ...base, rideMinutes: 1 });
   const saved = { ...minibus, stop: { ...base.stop, id: 'other' } };
-  expect(sortJourneys([fast, savedSlow], now, [saved], true)[0]).toBe(savedSlow);
+  expect(sortJourneys([fast, savedSlow], now, [saved], true)[0]).toBe(fast);
   expect(sortJourneys([fast, savedSlow], now, [{ ...saved, route: { ...saved.route, service: '2001' } }], true)[0]).toBe(fast);
 });
 
@@ -120,20 +120,31 @@ test('school saved marker and ordering agree across stop, service, and normalize
   const slow = timed({ ...base, route: { ...base.route, service: '2' }, rideMinutes: 40 });
   const fast = timed({ ...base, route: { ...base.route, route: '2' }, rideMinutes: 1 });
   expect(matchesSavedJourney(slow, [saved], true)).toBe(true);
-  expect(sortJourneys([fast, slow], now, [saved], true)[0]).toBe(slow);
+  expect(sortJourneys([fast, slow], now, [saved], true)[0]).toBe(fast);
   expect(matchesSavedJourney(slow, [saved])).toBe(false);
   expect(matchesSavedJourney({ ...slow, route: { ...slow.route, bound: 'I' } }, [saved], true)).toBe(false);
 });
 
-test('direct and transfer groups each retain saved priority and destination arrival order', () => {
+test('direct and transfer options share destination arrival ranking', () => {
   const fast = timed({ ...base, route: { ...base.route, route: '2' }, rideMinutes: 1 });
   const saved = timed({ ...base, rideMinutes: 30 });
   const connection = { ...base, route: { ...base.route, route: '3' }, rideMinutes: 1 };
   const transfer = timed({ ...fast, transfer: { leg: connection, meters: 0 } });
   transfer.legArrivals = [[eta(5)], [eta(20)]];
   const savedTransfer = { ...transfer, route: base.route };
-  expect(sortJourneys([transfer, fast, savedTransfer, saved], now, [base], true)).toEqual([saved, fast, savedTransfer, transfer]);
-  expect(sortJourneys([transfer, saved, fast], now)).toEqual([fast, saved, transfer]);
+  expect(sortJourneys([transfer, fast, savedTransfer, saved], now, [base], true)).toEqual([fast, savedTransfer, transfer, saved]);
+  expect(sortJourneys([transfer, saved, fast], now)).toEqual([fast, transfer, saved]);
   const unknown = { ...fast, arrivals: [], legArrivals: [], rideMinutes: undefined };
-  expect(sortJourneys([transfer, unknown], now)).toEqual([unknown, transfer]);
+  expect(sortJourneys([transfer, unknown], now)).toEqual([transfer, unknown]);
+});
+
+
+test('favourites win equal destination arrivals but never override a faster transfer', () => {
+  const direct = timed({ ...base, rideMinutes: 30 });
+  const connection = { ...base, route: { ...base.route, route: '3' }, rideMinutes: 1 };
+  const transfer = timed({ ...base, route: { ...base.route, route: '2' }, rideMinutes: 1, transfer: { leg: connection, meters: 0 } });
+  transfer.legArrivals = [[eta(5)], [eta(10)]];
+  expect(sortJourneys([direct, transfer], now, [base], true)).toEqual([transfer, direct]);
+  const equal = timed({ ...base, route: { ...base.route, route: '4' } });
+  expect(sortJourneys([equal, timed()], now, [base])).toEqual([timed(), equal]);
 });
