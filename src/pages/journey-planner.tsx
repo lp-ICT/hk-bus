@@ -69,6 +69,11 @@ export function sortJourneys(rows: TimedJourney[], now: number, favourites: Favo
 }
 const journeyKey = (journey: Journey) => journeyLegs(journey).map(leg => routeKey(leg.route) + '-' + leg.stop.id + '-' + leg.stop.seq + '-' + leg.alight.id + '-' + leg.alight.seq).join('/');
 
+export function withoutRedundantTransfers<T extends Journey>(rows: T[]): T[] {
+  const directRoutes = new Set(rows.filter(row => !row.transfer).map(row => routeKey(row.route)));
+  return rows.filter(row => !row.transfer || !journeyLegs(row).some(leg => directRoutes.has(routeKey(leg.route))));
+}
+
 export function canCollapseTransfers(rows: Journey[]) {
   return new Set(rows.filter(row => !row.transfer).map(row => row.route.company + ':' + row.route.route)).size >= 2 && rows.some(row => !!row.transfer);
 }
@@ -134,8 +139,8 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
     window.addEventListener('online', resume);
     return () => { cancelled = true; controller.abort(); clearInterval(timer); window.removeEventListener('online', resume); };
   }, [journeys, active]);
-  const display = sortJourneys(rows, now, prioritiseFavourites ? favourites : [], school, railPriority);
-  const collapseTransfers = canCollapseTransfers(journeys);
+  const display = sortJourneys(withoutRedundantTransfers(rows), now, prioritiseFavourites ? favourites : [], school, railPriority);
+  const collapseTransfers = canCollapseTransfers(display);
   const showTransfers = !collapseTransfers || expandedJourneys === journeys;
   const visibleRows = showTransfers ? display : display.filter(row => !row.transfer);
   return <div className="journey-results">

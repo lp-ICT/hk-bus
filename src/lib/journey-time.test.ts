@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { estimateJourney, withJourneyTimes, estimateClock, type TimedJourney } from './journey-time';
-import { canCollapseTransfers, matchesSavedJourney, sortJourneys } from '../pages/journey-planner';
+import { withoutRedundantTransfers, canCollapseTransfers, matchesSavedJourney, sortJourneys } from '../pages/journey-planner';
 import type { Journey } from './journey';
 
 const now = Date.parse('2026-11-05T08:00:00+08:00');
@@ -179,4 +179,17 @@ test('collapse transfers only with two distinct direct routes, not duplicate boa
   expect(canCollapseTransfers([base, transfer])).toBe(false);
   expect(canCollapseTransfers([transfer])).toBe(false);
   expect(canCollapseTransfers([base, second])).toBe(false);
+});
+
+
+test('hide transfers containing any direct service in the same direction, including third legs', () => {
+  const direct = { ...base, route: { ...base.route, company: 'GMB' as const, route: '312', service: 'official-312' } };
+  const feeder = { ...base, route: { ...base.route, route: '140M' }, transfer: { leg: { ...direct, stop: { ...direct.stop, id: 'other' } }, meters: 0 } };
+  const third = { ...base, route: { ...base.route, route: '40' }, transfer: { leg: feeder, meters: 0 } };
+  const reverse = { ...feeder, transfer: { leg: { ...direct, route: { ...direct.route, bound: 'I' } }, meters: 0 } };
+  const otherOperator = { ...feeder, transfer: { leg: { ...direct, route: { ...direct.route, company: 'KMB' as const } }, meters: 0 } };
+  const otherService = { ...feeder, transfer: { leg: { ...direct, route: { ...direct.route, service: 'other-region-312' } }, meters: 0 } };
+  expect(withoutRedundantTransfers([feeder, direct, third, reverse, otherOperator, otherService])).toEqual([direct, reverse, otherOperator, otherService]);
+  expect(withoutRedundantTransfers([feeder, third])).toEqual([feeder, third]);
+  expect(withoutRedundantTransfers([{ ...direct, transfer: { leg: base, meters: 0 } }, direct])).toEqual([direct]);
 });
