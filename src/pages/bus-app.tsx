@@ -1,5 +1,7 @@
 import { ScreenActivity, useScreenActive } from '../lib/activity';
 import { usePageRefresh } from '../lib/page-refresh';
+import { startupTab } from '../lib/startup-tab';
+import { schoolPlace } from '../lib/journey';
 import { reloadLatestPage } from '../lib/reload-page';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownUp, ArrowLeft, ArrowRight, BusFront, ChevronRight, Clock3, Download, MapPin, Share2, RefreshCw, Search, Star, WifiOff, X } from 'lucide-react';
@@ -75,7 +77,9 @@ function EtaPanel({ selected, compact = false }: { selected: Favourite; compact?
 
 export default function BusApp() {
   const active = useScreenActive();
-  const [tab, setTab] = useState<'search' | 'favourites' | 'nearby' | 'school' | 'toSchool'>('nearby');
+  const startupTime = useRef(new Date());
+  const startupTabPending = useRef(true);
+  const [tab, setTab] = useState<'search' | 'favourites' | 'nearby' | 'school' | 'toSchool'>(() => startupTab(startupTime.current, null, schoolPlace));
   const [query, setQuery] = useState('');
   const [searchMode, setSearchMode] = useState<'route' | 'journey'>('route');
   const [company, setCompany] = useState<'all' | 'RESIDENT' | Company>('all');
@@ -196,7 +200,7 @@ export default function BusApp() {
     try { localStorage.setItem('bus-favourites-v1', JSON.stringify(next)); setFavourites(next); setNotice(exists ? '已移除收藏' : '已收藏此路線、方向及上車站'); }
     catch { setNotice('未能儲存收藏，請檢查瀏覽器儲存空間。'); }
   }
-  function changeTab(value: typeof tab) { setTab(value); setRoute(null); setSelected(null); }
+  function changeTab(value: typeof tab) { startupTabPending.current = false; setTab(value); setRoute(null); setSelected(null); }
   async function locate() {
     if (locationActive.current) return;
     locationActive.current = true;
@@ -212,6 +216,11 @@ export default function BusApp() {
         const fix = await new Promise<GeolocationPosition>((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }));
         latitude = fix.coords.latitude; longitude = fix.coords.longitude;
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error('定位資料不完整');
+        if (startupTabPending.current) {
+          startupTabPending.current = false;
+          const automaticTab = startupTab(startupTime.current, { lat: latitude, lng: longitude }, schoolPlace);
+          if (automaticTab !== 'nearby') setTab(automaticTab);
+        }
         setNearAccuracy(fix.coords.accuracy);
         setDeviceLocation({ lat: latitude, lng: longitude, accuracy: fix.coords.accuracy, time: fix.timestamp });
         setGpsStatus('ready'); setLocationLandmark('');
