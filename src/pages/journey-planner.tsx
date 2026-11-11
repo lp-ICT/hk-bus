@@ -144,8 +144,9 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
   const showTransfers = !collapseTransfers || expandedJourneys === journeys;
   const visibleRows = showTransfers ? display : display.filter(row => !row.transfer);
   return <div className="journey-results">
+    {school && <details className="journey-help"><summary>排序說明 ⓘ</summary><p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p></details>}
     <div className="nearby-refresh"><span role="timer">{busy || refreshing ? '正在更新資料…' : '下次更新：' + Math.max(0, Math.ceil((due - now) / 1000)) + ' 秒'}</span><button className="primary-button" disabled={busy || refreshing} onClick={() => void onRefresh()}>立即更新</button></div>
-    {school ? <details className="journey-help"><summary>排序說明 ⓘ</summary><p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p></details> : <p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p>}
+    {!school && <p className="station-caption">按預計最快抵達目的地排序；抵達時間相同時，收藏路線優先。未能估算的方案排後。</p>}
     {railPriority !== 'none' && <p className="station-caption">{railPriority === 'both' ? '起點及目的地均為港鐵站：港鐵方案優先。' : '目的地為港鐵站：直達巴士優先，其次為第二程乘港鐵的方案。'}各組內按預計最快抵達排序。</p>}
     {rows.some(row => row.error) && <p className="data-warning" role="alert">部分到站資料未能更新；有舊資料的路線會保留上次預報，請留意時間。</p>}
     {collapseTransfers && <button className="primary-button" aria-expanded={showTransfers} onClick={() => setExpandedJourneys(showTransfers ? null : journeys)}>{showTransfers ? '隱藏轉車方案' : '顯示轉車方案'}（{journeys.filter(row => row.transfer).length}）</button>}
@@ -296,6 +297,12 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
   const mapsUrl = (fromSchool || useGps || origin || originText.trim()) ? googleTransitUrl(mapsOrigin, mapsDestination) : undefined;
   return <section aria-label={school ? '返學啦' : '起點及目的地搜尋'} className={`journey-planner ${school ? 'school-compact' : ''}`}>
     {school && <p className="school-trip-summary">{useGps ? '目前位置' : origin?.name || '自選起點'} → 李炳中學</p>}
+      {school && <details className="school-options"><summary>更多選項</summary>
+        <label className="gps-choice"><input type="checkbox" checked={useGps} onChange={event => { setUseGps(event.target.checked); clearResults(); }} /><MapPin size={17} />以目前位置為起點</label>
+        {!useGps && <PlaceInput label="起點" value={origin} onTextChange={setOriginText} onChange={value => { setOrigin(value); clearResults(); }} />}
+        {mapsUrl && <a className="primary-button journey-google-button" href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin size={15} />Google 地圖</a>}
+      <details className="journey-help"><summary>使用說明 ⓘ</summary><p className="list-note">全部交通可混合轉車；選擇個別類別後，所有車程只使用該類交通工具。Google 地圖另行提供公共交通方案，不套用此篩選。</p><p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p><p className="list-note">配對九巴／龍運、綠色小巴、港鐵及已收錄居民巴士；居民巴士未有即時預報，請核對官方時間表及服務時段。比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p></details>
+      </details>}
     <div className="journey-form">
       {!school && !fromSchool && <label className="gps-choice"><input type="checkbox" checked={useGps} onChange={event => { setUseGps(event.target.checked); clearResults(); }} /><MapPin size={17} />以目前位置為起點</label>}
       {fromSchool && <p className="school-destination">起點：聖公會李炳中學</p>}
@@ -308,12 +315,6 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
         {!school && (mapsUrl ? <a className="primary-button journey-google-button" href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin size={15} />Google 地圖</a> : <button className="primary-button journey-google-button" disabled><MapPin size={15} />Google 地圖</button>)}
       </div>
       {!school && <p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p>}
-      {school && <details className="school-options"><summary>更多選項</summary>
-        <label className="gps-choice"><input type="checkbox" checked={useGps} onChange={event => { setUseGps(event.target.checked); clearResults(); }} /><MapPin size={17} />以目前位置為起點</label>
-        {!useGps && <PlaceInput label="起點" value={origin} onTextChange={setOriginText} onChange={value => { setOrigin(value); clearResults(); }} />}
-        {mapsUrl && <a className="primary-button journey-google-button" href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin size={15} />Google 地圖</a>}
-      <details className="journey-help"><summary>使用說明 ⓘ</summary><p className="list-note">全部交通可混合轉車；選擇個別類別後，所有車程只使用該類交通工具。Google 地圖另行提供公共交通方案，不套用此篩選。</p><p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p><p className="list-note">配對九巴／龍運、綠色小巴、港鐵及已收錄居民巴士；居民巴士未有即時預報，請核對官方時間表及服務時段。比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p></details>
-      </details>}
       {!school && <p className="list-note">配對九巴／龍運、綠色小巴、港鐵及已收錄居民巴士；居民巴士未有即時預報，請核對官方時間表及服務時段。比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p>}
     </div>
     {error && <p className="data-warning" role="alert">{error}<button className="text-button" disabled={busy || loadingRoutes} onClick={() => void find(true)}>重試</button></p>}
