@@ -189,6 +189,33 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
 
 export default function JourneyPlanner({ school = false, fromSchool = false, routes, loadingRoutes, position, favourites, onToggleFavourite, onSelect }: { school?: boolean; fromSchool?: boolean; routes: Route[]; loadingRoutes: boolean; position: { lat: number; lng: number } | null; favourites: Favourite[]; onToggleFavourite: (favourite: Favourite) => void; onSelect: (favourite: Favourite) => void }) {
   const active = useScreenActive();
+  const resultsAnchor = useRef<HTMLDivElement>(null);
+  const scrollAfterSearch = useRef(school);
+  const returnScroll = useRef<number | null>(null);
+  const [resultsVersion, setResultsVersion] = useState(0);
+  useEffect(() => {
+    if (!active || !school || !scrollAfterSearch.current && returnScroll.current === null) return;
+    let frame = 0;
+    const scroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (returnScroll.current !== null) {
+          window.scrollTo({ top: returnScroll.current, behavior: 'instant' });
+          returnScroll.current = null;
+          scrollAfterSearch.current = false;
+          observer.disconnect();
+        } else if (scrollAfterSearch.current && resultsAnchor.current?.querySelector('.route-card')) {
+          resultsAnchor.current.scrollIntoView({ block: 'start', behavior: 'instant' });
+          scrollAfterSearch.current = false;
+          observer.disconnect();
+        }
+      });
+    };
+    const observer = new MutationObserver(scroll);
+    if (resultsAnchor.current) observer.observe(resultsAnchor.current, { childList: true, subtree: true });
+    scroll();
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [active, school, resultsVersion]);
   const [useGps, setUseGps] = useState(true);
   const [transport, setTransport] = useState<'all' | Route['company']>('all');
   const [origin, setOrigin] = useState<Place | null>(null);
@@ -247,7 +274,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
       }) : directJourneys(selectedRoutes, graph.stops, graph.rows, null, destination, true, destinationIds).map(journey => withJourneyTimes(journey, graph.times));
       if (mounted.current && id === requestId.current) {
         setRailPriority(destination.detail?.startsWith('港鐵站') ? start?.detail?.startsWith('港鐵站') ? 'both' : 'destination' : 'none');
-        setJourneys(result); setSnapshot(graph.snapshotAt); setSearched(true);
+        setJourneys(result); setSnapshot(graph.snapshotAt); setSearched(true); setResultsVersion(value => value + 1);
       }
     } catch (error) {
       if (mounted.current && id === requestId.current) setError(error instanceof Error ? error.message : '未能搜尋路線，請重試。');
@@ -267,27 +294,33 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
   const mapsOrigin = fromSchool ? schoolPlace : useGps ? position ? { ...position, name: '目前位置' } : null : origin || originText;
   const mapsDestination = school ? schoolPlace : destination || destinationText;
   const mapsUrl = (fromSchool || useGps || origin || originText.trim()) ? googleTransitUrl(mapsOrigin, mapsDestination) : undefined;
-  return <section aria-label={school ? '返學啦' : '起點及目的地搜尋'} className="journey-planner">
-    {school && <h2 className="journey-heading">返學啦 · 聖公會李炳中學</h2>}
+  return <section aria-label={school ? '返學啦' : '起點及目的地搜尋'} className={`journey-planner ${school ? 'school-compact' : ''}`}>
+    {school && <p className="school-trip-summary">{useGps ? '目前位置' : origin?.name || '自選起點'} → 李炳中學</p>}
     <div className="journey-form">
-      {!fromSchool && <label className="gps-choice"><input type="checkbox" checked={useGps} onChange={event => { setUseGps(event.target.checked); clearResults(); }} /><MapPin size={17} />以目前位置為起點</label>}
+      {!school && !fromSchool && <label className="gps-choice"><input type="checkbox" checked={useGps} onChange={event => { setUseGps(event.target.checked); clearResults(); }} /><MapPin size={17} />以目前位置為起點</label>}
       {fromSchool && <p className="school-destination">起點：聖公會李炳中學</p>}
-      {!fromSchool && !useGps && <PlaceInput label="起點" value={origin} onTextChange={setOriginText} onChange={value => { setOrigin(value); clearResults(); }} />}
-      {school ? <p className="school-destination">目的地：聖公會李炳中學</p> : <PlaceInput label="目的地" value={destination} onTextChange={setDestinationText} onChange={value => { setDestination(value); clearResults(); }} />}
-      <div className="filter-row" aria-label="行程交通工具">{([{ id: 'all', name: '全部交通' }, { id: 'KMB', name: '九巴 / 龍運' }, { id: 'CTB', name: '城巴（暫未支援行程配對）' }, { id: 'RESIDENT', name: '居民巴士' }, { id: 'GMB', name: '綠色小巴' }, { id: 'MTR', name: '港鐵' }] as const).filter(option => !school || option.id === 'all' || option.id === 'KMB' || option.id === 'GMB').map(option => <button key={option.id} disabled={option.id === 'CTB'} aria-pressed={transport === option.id} className={transport === option.id ? 'chosen' : ''} onClick={() => { clearResults(); setTransport(option.id); }}>{school && option.id === 'GMB' ? '小巴' : option.name}</button>)}</div>
+      {!school && !fromSchool && !useGps && <PlaceInput label="起點" value={origin} onTextChange={setOriginText} onChange={value => { setOrigin(value); clearResults(); }} />}
+      {!school && <PlaceInput label="目的地" value={destination} onTextChange={setDestinationText} onChange={value => { setDestination(value); clearResults(); }} />}
+      <div className="filter-row" aria-label="行程交通工具">{([{ id: 'all', name: '全部交通' }, { id: 'KMB', name: '九巴 / 龍運' }, { id: 'CTB', name: '城巴（暫未支援行程配對）' }, { id: 'RESIDENT', name: '居民巴士' }, { id: 'GMB', name: '綠色小巴' }, { id: 'MTR', name: '港鐵' }] as const).filter(option => !school || option.id === 'all' || option.id === 'KMB' || option.id === 'GMB').map(option => <button key={option.id} disabled={option.id === 'CTB'} aria-pressed={transport === option.id} className={transport === option.id ? 'chosen' : ''} onClick={() => { if (school) scrollAfterSearch.current = true; clearResults(); setTransport(option.id); }}>{school && option.id === 'GMB' ? '小巴' : option.name}</button>)}</div>
       {!school && <p className="list-note">全部交通可混合轉車；選擇個別類別後，所有車程只使用該類交通工具。Google 地圖另行提供公共交通方案，不套用此篩選。</p>}
       <div className="journey-actions">
-        <button className="primary-button journey-search-button" disabled={busy || loadingRoutes} onClick={() => { if (school) setRevision(value => value + 1); else void find(true); }}><Search size={18} />{busy ? '正在搜尋…' : '搜尋路線'}</button>
-        {mapsUrl ? <a className="primary-button journey-google-button" href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin size={15} />Google 地圖</a> : <button className="primary-button journey-google-button" disabled><MapPin size={15} />Google 地圖</button>}
+        <button className="primary-button journey-search-button" disabled={busy || loadingRoutes} onClick={() => { if (school) { scrollAfterSearch.current = true; setRevision(value => value + 1); } else void find(true); }}><Search size={18} />{busy ? '正在搜尋…' : '搜尋路線'}</button>
+        {!school && (mapsUrl ? <a className="primary-button journey-google-button" href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin size={15} />Google 地圖</a> : <button className="primary-button journey-google-button" disabled><MapPin size={15} />Google 地圖</button>)}
       </div>
       {!school && <p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p>}
-      {school ? <details className="journey-help"><summary>使用說明 ⓘ</summary><p className="list-note">全部交通可混合轉車；選擇個別類別後，所有車程只使用該類交通工具。Google 地圖另行提供公共交通方案，不套用此篩選。</p><p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p><p className="list-note">配對九巴／龍運、綠色小巴、港鐵及已收錄居民巴士；居民巴士未有即時預報，請核對官方時間表及服務時段。比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p></details> : <p className="list-note">配對九巴／龍運、綠色小巴、港鐵及已收錄居民巴士；居民巴士未有即時預報，請核對官方時間表及服務時段。比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p>}
+      {school && <details className="school-options"><summary>更多選項</summary>
+        <label className="gps-choice"><input type="checkbox" checked={useGps} onChange={event => { setUseGps(event.target.checked); clearResults(); }} /><MapPin size={17} />以目前位置為起點</label>
+        {!useGps && <PlaceInput label="起點" value={origin} onTextChange={setOriginText} onChange={value => { setOrigin(value); clearResults(); }} />}
+        {mapsUrl && <a className="primary-button journey-google-button" href={mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin size={15} />Google 地圖</a>}
+      <details className="journey-help"><summary>使用說明 ⓘ</summary><p className="list-note">全部交通可混合轉車；選擇個別類別後，所有車程只使用該類交通工具。Google 地圖另行提供公共交通方案，不套用此篩選。</p><p className="list-note">{!mapsUrl ? '請先輸入' + (!fromSchool && !useGps ? '起點及' : '') + '目的地。' : '開啟 Google 地圖，以公共交通規劃行程及步行接駁；起點及目的地會傳送給 Google。'}{useGps && !fromSchool && !position && ' Google 地圖會嘗試取得目前位置；無法定位時可自行選擇起點。'}</p><p className="list-note">配對九巴／龍運、綠色小巴、港鐵及已收錄居民巴士；居民巴士未有即時預報，請核對官方時間表及服務時段。比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p></details>
+      </details>}
+      {!school && <p className="list-note">配對九巴／龍運、綠色小巴、港鐵及已收錄居民巴士；居民巴士未有即時預報，請核對官方時間表及服務時段。比較直達及最多轉兩次車的候選方案，每種轉車次數最多列出 12 個。城巴可用路線搜尋。每條路線最多三班預報，按預計最快抵達目的地排序，資料不足的方案排後。</p>}
     </div>
     {error && <p className="data-warning" role="alert">{error}<button className="text-button" disabled={busy || loadingRoutes} onClick={() => void find(true)}>重試</button></p>}
     {loadingRoutes && <p className="loading-message">正在載入路線資料…</p>}
     {busy && !searched && <p className="loading-message">正在配對上落車站…</p>}
-    {searched && journeys.some(journey => journey.transfer) && <p className="data-warning">以下包括轉車候選方案（最多兩次）。按預計抵達目的地排序；轉車距離為直線估算，一般最多 200 米、涉及港鐵最多 400 米；中環／香港及尖沙咀／尖東另按已知站內連接處理。請確認行人通道。後續各程仍顯示車站目前預報；估算只選步行及前段車程後可接駁的預報，不能保證銜接。</p>}
-    {searched && <JourneyResults railPriority={railPriority} journeys={journeys} school={school} prioritiseFavourites={true} refreshing={busy} onRefresh={refresh} favourites={favourites} onToggleFavourite={onToggleFavourite} onSelect={onSelect} />}
+    {searched && journeys.some(journey => journey.transfer) && (school ? <details className="journey-help"><summary>轉車及步行注意事項 ⓘ</summary><p className="data-warning">以下包括轉車候選方案（最多兩次）。按預計抵達目的地排序；轉車距離為直線估算，一般最多 200 米、涉及港鐵最多 400 米；中環／香港及尖沙咀／尖東另按已知站內連接處理。請確認行人通道。後續各程仍顯示車站目前預報；估算只選步行及前段車程後可接駁的預報，不能保證銜接。</p></details> : <p className="data-warning">以下包括轉車候選方案（最多兩次）。按預計抵達目的地排序；轉車距離為直線估算，一般最多 200 米、涉及港鐵最多 400 米；中環／香港及尖沙咀／尖東另按已知站內連接處理。請確認行人通道。後續各程仍顯示車站目前預報；估算只選步行及前段車程後可接駁的預報，不能保證銜接。</p>)}
+    {searched && <div ref={resultsAnchor} className="journey-results-anchor"><JourneyResults railPriority={railPriority} journeys={journeys} school={school} prioritiseFavourites={true} refreshing={busy} onRefresh={refresh} favourites={favourites} onToggleFavourite={onToggleFavourite} onSelect={value => { if (school) returnScroll.current = window.scrollY; onSelect(value); }} /></div>}
     {snapshot && searched && <p className="list-note">路線及車站資料日期：{new Date(snapshot).toLocaleDateString('zh-HK', { timeZone: 'Asia/Hong_Kong' })} · 到站預報另行即時查詢</p>}
   </section>;
 }
