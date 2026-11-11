@@ -114,6 +114,22 @@ export default function BusApp() {
   const [refreshRevision, setRefreshRevision] = useState(0);
   const [showMap, setShowMap] = useState(true);
   const [showTimetable, setShowTimetable] = useState(false);
+  const navigation = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const previous = root.style.getPropertyValue('--app-navigation-height');
+    const measure = () => root.style.setProperty('--app-navigation-height', `${navigation.current?.getBoundingClientRect().height || 0}px`);
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    if (navigation.current) observer?.observe(navigation.current);
+    window.addEventListener('resize', measure);
+    measure();
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', measure);
+      if (previous) root.style.setProperty('--app-navigation-height', previous);
+      else root.style.removeProperty('--app-navigation-height');
+    };
+  }, []);
   const stopList = useRef<HTMLDivElement>(null);
   const autoLocated = useRef('');
   const startupDeadline = useRef(Date.now() + 30000);
@@ -200,7 +216,7 @@ export default function BusApp() {
     try { localStorage.setItem('bus-favourites-v1', JSON.stringify(next)); setFavourites(next); setNotice(exists ? '已移除收藏' : '已收藏此路線、方向及上車站'); }
     catch { setNotice('未能儲存收藏，請檢查瀏覽器儲存空間。'); }
   }
-  function changeTab(value: typeof tab) { startupTabPending.current = false; setTab(value); setRoute(null); setSelected(null); }
+  function changeTab(value: typeof tab) { startupTabPending.current = false; setTab(value); setRoute(null); setSelected(null); window.scrollTo({ top: 0, behavior: 'instant' }); }
   async function locate() {
     if (locationActive.current) return;
     locationActive.current = true;
@@ -267,10 +283,14 @@ export default function BusApp() {
   }
   return <div className="bus-app">
     <PullRefresh enabled={!showInstall && !showQr} busy={false} onRefresh={reloadLatestPage} />
+    <div className="app-topbar" ref={navigation}>
     <header className="app-header"><a className="brand" href={import.meta.env.BASE_URL} aria-label="就到站首頁"><img className="school-crest" src={import.meta.env.BASE_URL + "school-crest.png"} alt="聖公會李炳中學校章" /><span>就到站<span className="brand-en app-version">v{import.meta.env.VITE_APP_VERSION}</span></span></a><div className="header-actions"><button className="install-button" onClick={() => setShowInstall(true)}><Download size={16} /><span>加入主畫面</span></button><button className="install-button qr-button" aria-label="分享網站" title="分享網站" onClick={() => setShowQr(true)}><Share2 size={18} /><span>分享</span></button></div></header>
+    <div className="app-navigation">
+      <nav className="tab-bar" aria-label="主要功能">{([{ id: 'search', label: '搜尋路線', icon: Search }, { id: 'favourites', label: '我的收藏', icon: Star }, { id: 'nearby', label: '附近路線', icon: MapPin }, { id: 'school', label: '放學啦', icon: BusFront }, { id: 'toSchool', label: '返學啦', icon: BusFront }] as const).map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => changeTab(item.id)}><item.icon size={19} />{item.label}{item.id === 'favourites' && favourites.length > 0 && <span className="count">{favourites.length}</span>}</button>)}</nav>
+    </div>
+    </div>
     {!online && <div className="offline-banner" role="status"><WifiOff size={16} />目前離線 · 到站預報需要網絡連線</div>}
     <main>
-      <nav className="tab-bar" aria-label="主要功能">{([{ id: 'search', label: '搜尋路線', icon: Search }, { id: 'favourites', label: '我的收藏', icon: Star }, { id: 'nearby', label: '附近路線', icon: MapPin }, { id: 'school', label: '放學啦', icon: BusFront }, { id: 'toSchool', label: '返學啦', icon: BusFront }] as const).map(item => <button key={item.id} className={tab === item.id ? 'active' : ''} aria-current={tab === item.id ? 'page' : undefined} onClick={() => changeTab(item.id)}><item.icon size={19} />{item.label}{item.id === 'favourites' && favourites.length > 0 && <span className="count">{favourites.length}</span>}</button>)}</nav>
       <div className="current-location" role="status" aria-live="polite"><MapPin size={14} /><div className="location-content">{deviceLocation && <div className="location-line"><span className="location-name" title={locationLandmark ? `鄰近 ${locationLandmark}` : '已取得裝置位置'}>{locationLandmark ? `鄰近 ${locationLandmark}` : '已取得定位'}</span><small className="location-meta"> · ±{Math.round(deviceLocation.accuracy)}米 · {new Date(deviceLocation.time).toLocaleTimeString('zh-HK', { timeZone: 'Asia/Hong_Kong', hour: '2-digit', minute: '2-digit', hour12: false })}更新</small></div>}{gpsStatus === 'loading' && <span>正在取得定位…</span>}{gpsStatus === 'error' && <span>{gpsError}{deviceLocation ? ' 以下為上次成功定位，並非最新位置。' : ''}</span>}{deviceLocation && deviceLocation.accuracy > 500 && <span>定位範圍較大</span>}{manualPlace && <span>路線查詢使用手動位置：{manualPlace.name}（並非裝置定位）</span>}</div></div>
       <ConnectionStatus />
       {route ? <section className="route-detail"><button className="back-button" onClick={() => { setRoute(null); setSelected(null); }}><ArrowLeft size={17} />返回路線</button><div className="detail-heading"><span className={`route-number ${route.company.toLowerCase()}`}>{route.route}</span><div><small>{companyName(route.company)}{route.company !== 'GMB' && route.company !== 'MTR' && route.company !== 'RESIDENT' && route.service !== '1' ? ` · 特別班次 ${route.service}` : ''}</small><h2>往 {route.to}</h2><p>由 {route.from} 開出</p></div><button className="icon-button switch-button" aria-label="切換方向" disabled={!routes.some(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound)} onClick={() => { const reverse = routes.find(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound && r.service === route.service) || routes.find(r => r.company === route.company && r.route === route.route && (r.company !== 'GMB' || r.region === route.region) && r.bound !== route.bound); if (reverse) { setRoute(reverse); setSelected(null); } }}><ArrowDownUp size={21} /></button></div><div className="route-tools"><button className="text-button" aria-expanded={showMap} onClick={() => setShowMap(value => !value)}>{showMap ? '收起地圖' : '顯示地圖'}</button><button className="text-button" aria-expanded={showTimetable} onClick={() => setShowTimetable(value => !value)}>時間表／服務時間</button></div>{showTimetable && <RouteTimetable key={routeKey(route)} route={route} />}{showMap && <RouteMap route={route} stops={stops} position={deviceLocation || position} selected={selected?.stop || null} onSelect={selectMapStop} />}<div className="section-label"><span>選擇上車站</span><span>{stops.length} 個車站</span></div>{stopLoading && <p className="loading-message"><RefreshCw size={17} className="spin" />正在載入車站…</p>}{stopError && <p className="error-text" role="alert">{stopError}</p>}{!stopLoading && !stopError && !stops.length && <p className="empty-message">這個方向暫時沒有車站資料，請切換方向。</p>}<div className="stop-list route-stop-scroll" ref={stopList}>{stops.map(stop => {
