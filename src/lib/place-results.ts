@@ -1,7 +1,7 @@
 import { distance } from './bus';
 import type { Place } from './journey';
 
-const normalName = (name: string) => name.trim().replace(/^(香港|港鐵)/, '').replace(/\s+/g, '').toLowerCase();
+const normalName = (name: string) => name.trim().replace(/\s*[（(][A-Z]{1,3}\d+[）)]\s*$/i, '').replace(/^(香港|港鐵)/, '').replace(/\s+/g, '').toLowerCase();
 const attractions = [
   { query: /^(香港)?海洋公園$/, name: '香港海洋公園', station: '海洋公園站', stationId: 'MTR:OCP' },
   { query: /^(香港)?迪士尼(樂園)?$/, name: '香港迪士尼樂園', station: '迪士尼站', stationId: 'MTR:DIS' },

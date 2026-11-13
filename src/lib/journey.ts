@@ -22,6 +22,7 @@ export function schoolDestinationStops(stops: Stop[]) {
 export async function searchPlaces(query: string, signal?: AbortSignal): Promise<Place[]> {
   const term = query.trim();
   if (!term) return [];
+  const stopPlacesRequest = allKmbStops().then(stops => searchStops(stops, term).slice(0, 12).map(stop => ({ ...stop, detail: '巴士站位置 · ' + stop.id }))).catch(() => [] as Place[]);
   const railPlaces = await mtrNetwork().then(network => {
     const alias = /迪士尼/.test(term) ? '迪士尼' : /海洋公園/.test(term) ? '海洋公園' : term.replace(/^港鐵/, '').replace(/站$/, '');
     return network.stops.filter(stop => stop.name.includes(alias)).slice(0, 4).map(stop => ({ name: stop.name, lat: stop.lat, lng: stop.lng, detail: '港鐵站位置 · 景點請確認入口及步行路線' }));
@@ -36,14 +37,13 @@ export async function searchPlaces(query: string, signal?: AbortSignal): Promise
     if (!response.ok) throw new Error('地點服務暫時未能連線');
     const rows = await response.json();
     if (!Array.isArray(rows)) throw new Error('地點資料格式不完整');
-    return organisePlaces(term, [...railPlaces, ...rows.filter(row => (row.nameZH || row.nameEN) && Number.isFinite(row.x) && Number.isFinite(row.y))
+    return organisePlaces(term, [...await stopPlacesRequest, ...railPlaces, ...rows.filter(row => (row.nameZH || row.nameEN) && Number.isFinite(row.x) && Number.isFinite(row.y))
       .map(row => hkPlace(row.nameZH || row.nameEN, row.x, row.y, [row.districtZH, row.addressZH].filter(Boolean).join(' · ')))]);
   } catch (error) {
     if (signal?.aborted) throw error;
-    if (railPlaces.length) return organisePlaces(term, railPlaces);
-    const stops = searchStops(await allKmbStops(), term).slice(0, 12);
-    if (!stops.length) throw new Error('未能查詢地點，請重試或輸入巴士站名稱。');
-    return organisePlaces(term, stops.map(stop => ({ ...stop, detail: '巴士站位置 · ' + stop.id })));
+    const places = [...await stopPlacesRequest, ...railPlaces];
+    if (!places.length) throw new Error('未能查詢地點，請重試或輸入巴士站名稱。');
+    return organisePlaces(term, places);
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', abort);

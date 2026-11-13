@@ -183,7 +183,7 @@ function JourneyResults({ journeys, school, refreshing, onRefresh, favourites, o
         })}
       </div>;
     })}
-    {!journeys.length && <p className="empty-message">{'指定範圍內未找到直達或最多轉兩次車的方案，請改選起點或目的地。'}</p>}
+    {!journeys.length && !refreshing && <p className="empty-message">{'指定範圍內未找到直達或最多轉兩次車的方案，請改選起點或目的地。'}</p>}
     {school ? <details className="journey-help"><summary>估算方法及資料來源 ⓘ</summary><p className="list-note"><a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_23-routes-fares-geojson" target="_blank" rel="noreferrer">參考車程來源：運輸署</a>。{school ? '有起點時只配對 1 公里內上車的方案；無定位時僅列所有直達路線。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。抵達時間為估算，按運輸署全程參考車程分攤所搭路段；步行按每小時 4.5 公里及直線距離乘 1.3，一般轉車預留 2 分鐘；港鐵首次入站另加 3 分鐘、轉乘入站或轉綫另加 5 分鐘。港鐵車程按站距（乘 1.2）、每小時 35 公里及每站 45 秒粗略估算，並非港鐵官方行車時間。未計即時塞車及真實行人路線，不能保證銜接；缺資料的方案在所屬組內排後。候選搜尋不保證涵蓋所有路線。</p></details> : <p className="list-note"><a href="https://data.gov.hk/tc-data/dataset/hk-td-tis_23-routes-fares-geojson" target="_blank" rel="noreferrer">參考車程來源：運輸署</a>。{school ? '有起點時只配對 1 公里內上車的方案；無定位時僅列所有直達路線。落車站為可風中學門口、對面巴士站或學校附近小巴站。' : '上車站距起點最多 1 公里，落車站距目的地最多 400 米（直線）。'}距離為直線估算，實際步行路徑可能較遠。抵達時間為估算，按運輸署全程參考車程分攤所搭路段；步行按每小時 4.5 公里及直線距離乘 1.3，一般轉車預留 2 分鐘；港鐵首次入站另加 3 分鐘、轉乘入站或轉綫另加 5 分鐘。港鐵車程按站距（乘 1.2）、每小時 35 公里及每站 45 秒粗略估算，並非港鐵官方行車時間。未計即時塞車及真實行人路線，不能保證銜接；缺資料的方案在所屬組內排後。候選搜尋不保證涵蓋所有路線。</p>}
   </div>;
 }
@@ -228,6 +228,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+  const [progress, setProgress] = useState('');
   const [snapshot, setSnapshot] = useState('');
   const [revision, setRevision] = useState(0);
   const worker = useRef<Worker | null>(null);
@@ -242,7 +243,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
     const id = ++requestId.current;
     if (!destination) { setError('請先尋找並選擇目的地。'); return; }
     pendingFind.current = true;
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setProgress('正在取得起點位置…');
     try {
       let start = fromSchool ? schoolPlace : origin;
       if (useGps && !fromSchool) {
@@ -259,17 +260,29 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
       if (!mounted.current || id !== requestId.current) return;
       if (!school && !start) throw new Error('請先尋找並選擇起點。');
       if (!routes.some(route => route.company !== 'CTB')) throw new Error('交通路線資料未能載入，請稍後重試。');
+      setProgress('正在下載車站及路線資料…');
       const graph = await journeyGraph();
       if (!mounted.current || id !== requestId.current) return;
       const selectedRoutes = routes.filter(route => transport === 'all' || route.company === transport);
       const destinationIds = school ? schoolDestinationStops(graph.stops) : undefined;
+      setProgress('正在搜尋直達路線…');
       const result = start ? await new Promise<Journey[]>((resolve, reject) => {
         const task = new Worker(new URL('../lib/journey-worker.ts', import.meta.url));
         worker.current = task;
         const finish = () => { clearTimeout(timer); task.terminate(); if (worker.current === task) { worker.current = null; stopWorker.current = null; } };
-        const timer = setTimeout(() => { finish(); reject(new Error('行程配對逾時，請改選較接近的起點或目的地。')); }, 30000);
+        const timer = setTimeout(() => { finish(); reject(new Error('轉車搜尋逾時；已找到的直達方案會保留，可按重試再搜尋。')); }, 30000);
         stopWorker.current = () => { finish(); reject(new Error('搜尋已取消')); };
-        task.onmessage = event => { finish(); event.data.error ? reject(new Error(event.data.error)) : resolve(event.data.journeys); };
+        task.onmessage = event => {
+          if (event.data.partial) {
+            if (mounted.current && id === requestId.current) {
+              setJourneys(event.data.journeys); setSnapshot(graph.snapshotAt); setSearched(true);
+              setResultsVersion(value => value + 1); setProgress('直達搜尋完成，正在搜尋轉車方案…');
+              setRailPriority(destination.detail?.startsWith('港鐵站') ? start?.detail?.startsWith('港鐵站') ? 'both' : 'destination' : 'none');
+            }
+            return;
+          }
+          finish(); event.data.error ? reject(new Error(event.data.error)) : resolve(event.data.journeys);
+        };
         task.onerror = () => { finish(); reject(new Error('未能配對行程，請重試。')); };
         task.postMessage({ routes: selectedRoutes, stops: graph.stops, rows: graph.rows, origin: start, destination, alightingIds: destinationIds, preferredRoutes: school ? favourites.map(f => f.route) : [], times: graph.times });
       }) : directJourneys(selectedRoutes, graph.stops, graph.rows, null, destination, true, destinationIds).map(journey => withJourneyTimes(journey, graph.times));
@@ -319,7 +332,7 @@ export default function JourneyPlanner({ school = false, fromSchool = false, rou
     </div>
     {error && <p className="data-warning" role="alert">{error}<button className="text-button" disabled={busy || loadingRoutes} onClick={() => void find(true)}>重試</button></p>}
     {loadingRoutes && <p className="loading-message">正在載入路線資料…</p>}
-    {busy && !searched && <p className="loading-message">正在配對上落車站…</p>}
+    {busy && <p className="loading-message" role="status">{progress}</p>}
     {searched && journeys.some(journey => journey.transfer) && (school ? <details className="journey-help"><summary>轉車及步行注意事項 ⓘ</summary><p className="data-warning">以下包括轉車候選方案（最多兩次）。按預計抵達目的地排序；轉車距離為直線估算，一般最多 200 米、涉及港鐵最多 400 米；中環／香港及尖沙咀／尖東另按已知站內連接處理。請確認行人通道。後續各程仍顯示車站目前預報；估算只選步行及前段車程後可接駁的預報，不能保證銜接。</p></details> : <p className="data-warning">以下包括轉車候選方案（最多兩次）。按預計抵達目的地排序；轉車距離為直線估算，一般最多 200 米、涉及港鐵最多 400 米；中環／香港及尖沙咀／尖東另按已知站內連接處理。請確認行人通道。後續各程仍顯示車站目前預報；估算只選步行及前段車程後可接駁的預報，不能保證銜接。</p>)}
     {searched && <div ref={resultsAnchor} className="journey-results-anchor"><JourneyResults railPriority={railPriority} journeys={journeys} school={school} prioritiseFavourites={true} refreshing={busy} onRefresh={refresh} favourites={favourites} onToggleFavourite={onToggleFavourite} onSelect={value => { if (school) returnScroll.current = window.scrollY; onSelect(value); }} /></div>}
     {snapshot && searched && <p className="list-note">路線及車站資料日期：{new Date(snapshot).toLocaleDateString('zh-HK', { timeZone: 'Asia/Hong_Kong' })} · 到站預報另行即時查詢</p>}

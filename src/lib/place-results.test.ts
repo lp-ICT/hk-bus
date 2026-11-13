@@ -54,3 +54,13 @@ test('all place queries exclude defibrillator entries while retaining their surr
     expect(organisePlaces(query, rows).map(place => place.name)).toEqual([school.name]);
   }
 });
+
+ test('Mei Tin terminal matches station names with bay codes ahead of unrelated terminals', () => {
+  const results = organisePlaces('美田巴士總站', [
+    { name: '西九龍站巴士總站', lat: 22.3, lng: 114.16 },
+    { name: '美田巴士總站 (TA975)', lat: 22.376324, lng: 114.170565, detail: '巴士站位置' },
+    { name: '美田巴士總站 (TA972)', lat: 22.376324, lng: 114.170565, detail: '巴士站位置' },
+  ]);
+  expect(results[0].name).toBe('美田巴士總站 (TA975)');
+  expect(results.filter(place => place.name.startsWith('美田'))).toHaveLength(1);
+});
